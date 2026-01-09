@@ -16,7 +16,7 @@ pub enum VMError {
 
     // -- Externals
     #[from]
-    Io(std::io::Error)
+    Io(std::io::Error),
 }
 
 impl VMError {
@@ -25,7 +25,7 @@ impl VMError {
             VMError::UnknownRegister => "Unknown Register",
             VMError::OutOfBounds => "Memory access is out of bounds",
             VMError::Halted => "Cannot use a Halted machine",
-            _ => "Else"
+            _ => "Else",
         }
     }
 

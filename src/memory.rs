@@ -1,12 +1,13 @@
-use crate::{bus::BusDevice, vm::VMWord};
 use crate::error::{Result, VMError};
+use crate::{bus::BusDevice, vm::VMWord};
 
 pub struct LinearMemory {
-    bytes: Vec<u8>,
+    bytes: Vec<u8>, // mem
     size: usize,
 }
 
 impl LinearMemory {
+    // newMemory implementation
     pub fn new(n: usize) -> Self {
         Self {
             bytes: vec![0; n],

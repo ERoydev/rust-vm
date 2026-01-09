@@ -1,19 +1,24 @@
 #![allow(dead_code)]
 
-use crate::{bus::BusDevice, error::VMError, memory::LinearMemory, register::{Register, RegisterBank, RegisterId}};
 use crate::error::Result;
+use crate::{
+    bus::BusDevice,
+    error::VMError,
+    memory::LinearMemory,
+    register::{Register, RegisterBank, RegisterId},
+};
 
-// VM word is currently 16-bit since i build 16bit VM 
+// VM word is currently 16-bit since i build 16bit VM
 pub type VMWord = u16;
 
 // The VM config
 pub struct Config {}
 
 // It will simulate the computer for the 16bit VM
-struct VM {
-    registers: RegisterBank,
-    memory: Box<dyn BusDevice>,    // main memory
-    halted: bool,                  // Signal when the VM should stop processing instructions, after program finishes or encounter a fatal error
+pub struct VM {
+    pub registers: RegisterBank,
+    pub memory: Box<dyn BusDevice>, // main memory
+    pub halted: bool, // Signal when the VM should stop processing instructions, after program finishes or encounter a fatal error
 }
 
 impl VM {
@@ -33,9 +38,7 @@ impl VM {
                 println!("{} @ {:?}", instruction, pc);
                 Ok(())
             }
-            Err(err) => {
-                Err(VMError::UnknownRegister)
-            } 
+            Err(err) => Err(VMError::UnknownRegister),
         }
     }
 
@@ -43,8 +46,8 @@ impl VM {
         self.halted = true;
     }
 
-    pub fn read(&mut self, address_reg: Register, mut destination_reg: Register) {
-        if let Some(val) = self.memory.read2(address_reg.value) {
+    pub fn read(&mut self, source_reg: Register, destination_reg: Register) {
+        if let Some(val) = self.memory.read2(source_reg.value) {
             // Update the destination register in the bank
             if let Some(dest) = self.registers.get_register_mut(destination_reg.id as u8) {
                 dest.value = val;
@@ -56,10 +59,12 @@ impl VM {
         }
     }
 
-    pub fn write(&mut self, destination_reg: Register, address_reg: Register) {
-        if let Err(_) = self.memory.write2(destination_reg.value, address_reg.value) {
+    pub fn write(&mut self, destination_reg: Register, source_reg: Register) {
+        if let Err(_) = self.memory.write2(destination_reg.value, source_reg.value) {
             self.halt();
         }
+
+        println!("Writed");
     }
 
     pub fn copy(&mut self, address_reg: Register, destination_reg: Register) {
@@ -72,18 +77,25 @@ impl VM {
     }
 
     /*
-    Tick and execute_instruction will load an instruction into the IR and execute it if the machine is not halted.
-    It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
+        Tick and execute_instruction will load an instruction into the IR and execute it if the machine is not halted.
+        It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
     */
 
     pub fn execute_instruction(instruction: u16) {
+        // Decode the instruction
+        let opcode = instruction >> 12;
+        println!("Opcode: {}", opcode);
 
+        // TODO: Finish
     }
 
-    pub fn tick(&self) -> Result<()>{
+    // If not halted, execute the instruction
+    pub fn tick(&self) -> Result<()> {
         if self.halted {
             return Err(VMError::Halted);
         }
+
+        // self.registers.get_register_read_only(RegisterId::RBP);
 
         Ok(())
     }
@@ -92,26 +104,34 @@ impl VM {
 /*
 Instruction set which tells the CPU to do some fundamental task, such as add two numbers. Instructions have opcode (kind of task) and a set of parameters which provide inputs to the task being performed.
 
-Each opcode is one task that the CPU knows how to do. 
+Each opcode is one task that the CPU knows how to do.
 Each instruction is 16-bit in my case, with the left 4 bits storing the opcode. The rest of the bits are used to store the parameters.
 
 So i decide how much bit/byte to give for my opcode when i decide how much unique operations i want my VM to support
 */
+// enum Opcode {
+//     NOP,      // No operation
+//     ADD,      // Add
+//     SUB,      // Subtract
+//     MUL,      // Multiply
+//     DIV,      // Divide
+//     MOV,      // Move value
+//     LOAD,     // Load from memory
+//     STORE,    // Store to memory
+//     JMP,      // Jump
+//     BEQ,      // Branch if equal
+//     BNE,      // Branch if not equal
+//     AND,      // Bitwise AND
+//     OR,       // Bitwise OR
+//     XOR,      // Bitwise XOR
+//     NOT,      // Bitwise NOT
+//     HALT      // Stop execution
+// }
+
 enum Opcode {
-    NOP,      // No operation
-    ADD,      // Add
-    SUB,      // Subtract
-    MUL,      // Multiply
-    DIV,      // Divide
-    MOV,      // Move value
-    LOAD,     // Load from memory
-    STORE,    // Store to memory
-    JMP,      // Jump
-    BEQ,      // Branch if equal
-    BNE,      // Branch if not equal
-    AND,      // Bitwise AND
-    OR,       // Bitwise OR
-    XOR,      // Bitwise XOR
-    NOT,      // Bitwise NOT
-    HALT      // Stop execution
+    HALT,
+    READ,
+    WRITE,
+    COPY,
+    ADD,
 }
