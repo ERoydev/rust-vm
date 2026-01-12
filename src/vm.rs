@@ -18,6 +18,7 @@ pub trait VMOperations {
     fn write(&mut self, source_reg: Register, destination_reg: Register);
     fn copy(&mut self, source_reg: Register, destination_reg: Register);
     fn add(&mut self, source_reg: Register, destination_reg: Register);
+    fn move_ix(&mut self, source_reg: Register, destination_reg: Register);
 }
 
 // It will simulate the computer for the 16bit VM
@@ -54,9 +55,11 @@ impl VM {
         };
 
         let opcode = Opcode::try_from((instruction >> 12) as u8)?;
+        println!("\n==== instruction execution ======");
         println!("Address called: {}", ir_reg_addr);
         println!("Instruction: {:016b}", instruction);
         println!("OPCODE RECEIVED: {:?}", opcode);
+        println!("=== end of instruction execution =======\n");
         let dest_reg_i = ((instruction & 0x0F00) >> 8) as u8;
         let source_reg_i = ((instruction & 0x00F0) >> 4) as u8;
         let immediate_value = instruction & 0x000F;
@@ -71,6 +74,7 @@ impl VM {
             Opcode::WRITE => self.write(src_reg, dest_reg),
             Opcode::COPY => self.copy(src_reg, dest_reg),
             Opcode::ADD => self.add(src_reg, dest_reg),
+            Opcode::MOVE => self.move_ix(src_reg, dest_reg),
         }
 
         Ok(())
@@ -158,6 +162,7 @@ impl VMOperations for VM {
     }
 
     fn copy(&mut self, source_reg: Register, destination_reg: Register) {
+        println!("Register addr: {}", source_reg.value);
         if let Err(error) = self.memory.copy(source_reg.value, destination_reg.value) {
             eprintln!("COPY error: {}", error.message());
             self.halted = true;
@@ -165,12 +170,18 @@ impl VMOperations for VM {
     }
 
     fn add(&mut self, source_reg: Register, destination_reg: Register) {
-        println!("Add triggered");
-
         if let Err(error) = self.memory.add(source_reg.value, destination_reg.value) {
             eprintln!("ADD error: {}", error.message());
             self.halted = true;
         }
+    }
+
+    fn move_ix(&mut self, source_reg: Register, destination_reg: Register) {
+        // TODO: handle errors correctly
+        let bytes = self.memory.read2(source_reg.value).unwrap();
+        self.memory.write2(source_reg.value, 0x0).unwrap();
+
+        self.memory.write2(destination_reg.value, bytes).unwrap();
     }
 }
 
@@ -211,6 +222,7 @@ enum Opcode {
     WRITE,
     COPY,
     ADD,
+    MOVE,
 }
 
 impl TryFrom<u8> for Opcode {
@@ -224,6 +236,7 @@ impl TryFrom<u8> for Opcode {
             2 => Ok(Opcode::WRITE),
             3 => Ok(Opcode::COPY),
             4 => Ok(Opcode::ADD),
+            5 => Ok(Opcode::MOVE),
             _ => Err(VMError::OpcodeDoesNotExist),
         }
     }

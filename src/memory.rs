@@ -2,6 +2,7 @@ use crate::bus::BusDevice;
 use crate::constants::VmAddr;
 use crate::error::{Result, VMError};
 
+#[derive(Debug)]
 pub struct LinearMemory {
     pub bytes: Vec<u8>, // mem
     size: usize,
