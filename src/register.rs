@@ -27,9 +27,10 @@ pub enum RegisterId {
     RR3,
     RSP,    // Stack pointer (function calls, local vars) points to the top of the stack
     RPC,    // program counter, holds the address of the next ix to exec
-    RBP, // base pointer, used to ref the base of the current stack frame, aka Frame Pointer, it is read-only
+    RBP,    // base pointer, used to ref the base of the current stack frame, aka Frame Pointer, it is read-only
     RFLAGS, // condition flags (zero, carry, overflow) used for comparisons and branching
-    RIR, // holds current instruction being executed when VM fetches an ix from memory
+    RIR,    // holds current instruction being executed when VM fetches an ix from memory
+    RIM,    // holds immediate values
 }
 
 impl RegisterId {

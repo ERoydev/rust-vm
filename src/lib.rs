@@ -46,13 +46,13 @@ pub fn start_vm() {
 
     vm.set_memory(Box::new(memory));
 
-    let _ = vm.tick();
-    // while !vm.halted {
-    //     if let Err(e) = vm.tick() {
-    //         eprintln!("Vm error: {}", e.message());
-    //         break;
-    //     }
-    // }
+    // let _ = vm.tick();
+    while !vm.halted {
+        if let Err(e) = vm.tick() {
+            eprintln!("Vm error: {}", e.message());
+            break;
+        }
+    }
 
     if let Some(program_result) = vm.memory.read2(START_ADDRESS) {
         println!("The Value at address 0x100 is {}", program_result);

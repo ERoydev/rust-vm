@@ -14,6 +14,14 @@ pub type VMWord = u16;
 // The VM config
 pub struct Config {}
 
+pub trait VMOperations {
+    fn halt(&mut self, _: Register, _: Register);
+    fn read(&mut self, source_reg: Register, destination_reg: Register);
+    fn write(&mut self, destination_reg: Register, source_reg: Register);
+    fn copy(&mut self, address_reg: Register, destination_reg: Register);
+    fn add(&mut self, address_reg: Register, destination_reg: Register);
+}
+
 // It will simulate the computer for the 16bit VM
 pub struct VM {
     pub registers: RegisterBank,
@@ -44,40 +52,8 @@ impl VM {
                 println!("{} @ {:?}", instruction, pc);
                 Ok(())
             }
-            Err(err) => Err(VMError::UnknownRegister),
+            Err(_) => Err(VMError::UnknownRegister),
         }
-    }
-
-    pub fn halt(&mut self) {
-        self.halted = true;
-    }
-
-    pub fn read(&mut self, source_reg: Register, destination_reg: Register) {
-        if let Some(val) = self.memory.read2(source_reg.value) {
-            // Update the destination register in the bank
-            if let Ok(dest) = self.registers.get_register_mut(destination_reg.id as u8) {
-                dest.value = val;
-            } else {
-                self.halt();
-            }
-        } else {
-            self.halt();
-        }
-    }
-
-    pub fn write(&mut self, destination_reg: Register, source_reg: Register) {
-        if let Err(_) = self.memory.write2(destination_reg.value, source_reg.value) {
-            self.halt();
-        }
-    }
-
-    pub fn copy(&mut self, address_reg: Register, destination_reg: Register) {
-        // self.memory.copy(address_reg.value, destination_reg.value, n)
-        // destination_reg.value = address_reg.value
-    }
-
-    pub fn add(&mut self, address_reg: Register, destination_reg: Register) {
-        // destination_reg.value = address_reg.value + destination_reg.value
     }
 
     /*
@@ -85,22 +61,31 @@ impl VM {
         It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
     */
 
-    pub fn execute_instruction(&self, ir_reg_addr: VMWord) -> Result<()> {
+    pub fn execute_instruction(&mut self, ir_reg_addr: VMWord) -> Result<()> {
         // Decode the instruction
         let instruction = match self.memory.read2(ir_reg_addr) {
             Some(val) => val,
             None => return Err(VMError::MemoryReadError)
         };
 
-        let opcode = instruction >> 12;
-        println!("Opcode: {}", opcode);
+        let opcode = Opcode::try_from((instruction >> 12) as u8)?;
+        let dest_reg_i = ((instruction & 0x0F00) >> 8) as u8;
+        let source_reg_i = ((instruction & 0x00F0) >> 4) as u8;
+        let immediate_value = instruction & 0x000F;
 
+        let dest_reg = self.resolve_register_or_immediate(dest_reg_i, immediate_value)?;
+        let src_reg = self.resolve_register_or_immediate(source_reg_i, immediate_value)?;
 
-  
-        // let opcode = instruction >> 12;
+        // Opcode dispatcher invokes the VM to work with the register operations
+        match opcode {
+            Opcode::HALT => self.halt(dest_reg, src_reg),
+            Opcode::READ => self.read(dest_reg, src_reg),
+            Opcode::WRITE => self.write(dest_reg, src_reg),
+            Opcode::COPY => self.copy(dest_reg, src_reg),
+            Opcode::ADD => self.add(dest_reg, src_reg),
+        }
 
         Ok(())
-        // TODO: Finish
     }
 
     // If not halted, execute the instruction
@@ -136,11 +121,60 @@ impl VM {
         }
 
         if let Err(error) = self.execute_instruction(ir_reg_addr) {
-            self.halt();
+            self.halted = true;
             return Err(error);
         }
 
         Ok(())
+    }
+
+    fn resolve_register_or_immediate(&mut self, reg_i: u8, imm_value: u16) -> Result<Register> {
+        let reg;
+        if reg_i == RegisterId::RIM.id() {
+            reg = Register::new(RegisterId::RIM, imm_value);
+        } else {
+            reg = *self.registers.get_register_mut(reg_i)?;
+        }
+        Ok(reg)
+    }
+}
+
+/// Implements the core instruction set operations for the VM.
+/// 
+/// These methods correspond to the fundamental instructions that the VM can execute,
+/// such as halting, reading, writing, copying, and adding values.
+/// Each method is invoked in response to a specific opcode during program execution.
+impl VMOperations for VM {
+    fn halt(&mut self, _: Register, _: Register) {
+        self.halted = true;
+    }
+
+    fn read(&mut self, source_reg: Register, destination_reg: Register) {
+        if let Some(val) = self.memory.read2(source_reg.value) {
+            // Update the destination register in the bank
+            if let Ok(dest) = self.registers.get_register_mut(destination_reg.id as u8) {
+                dest.value = val;
+            } else {
+                self.halted = true;
+            }
+        } else {
+            self.halted = true;
+        }
+    }
+
+    fn write(&mut self, destination_reg: Register, source_reg: Register) {
+        if let Err(_) = self.memory.write2(destination_reg.value, source_reg.value) {
+            self.halted = true;
+        }
+    }
+
+    fn copy(&mut self, address_reg: Register, destination_reg: Register) {
+        // self.memory.copy(address_reg.value, destination_reg.value, n)
+        // destination_reg.value = address_reg.value
+    }
+
+    fn add(&mut self, address_reg: Register, destination_reg: Register) {
+        // destination_reg.value = address_reg.value + destination_reg.value
     }
 }
 
@@ -153,7 +187,10 @@ Each instruction is 16-bit in my case, with the left 4 bits storing the opcode. 
 So i decide how much bit/byte to give for my opcode when i decide how much unique operations i want my VM to support
 */
 // enum Opcode {
-//     NOP,      // No operation
+//     HALT      // Stop execution
+//     READ,
+//     WRITE,
+//     COPY,
 //     ADD,      // Add
 //     SUB,      // Subtract
 //     MUL,      // Multiply
@@ -168,13 +205,29 @@ So i decide how much bit/byte to give for my opcode when i decide how much uniqu
 //     OR,       // Bitwise OR
 //     XOR,      // Bitwise XOR
 //     NOT,      // Bitwise NOT
-//     HALT      // Stop execution
+//     NOP,      // No operation
 // }
 
+#[derive(Debug)]
 enum Opcode {
     HALT, // 0x01
     READ,
     WRITE,
     COPY,
     ADD,
+}
+
+impl TryFrom<u8> for Opcode {
+    type Error = VMError;
+
+    fn try_from(value: u8) -> Result<Self> {
+        match value {
+            0 => Ok(Opcode::HALT),
+            1 => Ok(Opcode::READ),
+            2 => Ok(Opcode::WRITE),
+            3 => Ok(Opcode::COPY),
+            4 => Ok(Opcode::ADD),
+            _ => Err(VMError::OpcodeDoesNotExist),
+        }
+    }
 }

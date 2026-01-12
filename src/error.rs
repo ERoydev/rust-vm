@@ -14,6 +14,7 @@ pub enum VMError {
     // vm
     Halted,
     MemoryReadError,
+    OpcodeDoesNotExist,
 
     // -- Externals
     #[from]
