@@ -20,6 +20,9 @@ pub enum VMError {
     AddInstructionFail,
     CopyInstructionFail,
 
+    // Math
+    Overflow,
+
     // -- Externals
     #[from]
     Io(std::io::Error),

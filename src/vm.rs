@@ -41,19 +41,6 @@ impl VM {
         log::info!("Set a new memory");
     }
 
-    pub fn step(&mut self) -> Result<()> {
-        // When the VM runs, we going to run a program(binary) and the VM is going to call step on that program until its done until we have some kind of outcome
-        match self.registers.get_register_read_only(RegisterId::RPC as u8) {
-            Ok(reg) => {
-                let pc = reg.value;
-                let instruction = self.memory.read2(pc).unwrap();
-                println!("{} @ {:?}", instruction, pc);
-                Ok(())
-            }
-            Err(_) => Err(VMError::UnknownRegister),
-        }
-    }
-
     /*
         Tick and execute_instruction will load an instruction into the IR and execute it if the machine is not halted.
         It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
@@ -118,8 +105,8 @@ impl VM {
 
         {
             let pc = self.registers.get_register_mut(RegisterId::RPC.id())?;
-            // TODO: The error is here since in memory i store it in u8 bytes, while i have 16-bit VM which means that i should read/write 2 bytes at a time
-            pc.value += 1;
+            // // TODO: The error is here since in memory i store it in u8 bytes, while i have 16-bit VM which means that i should read/write 2 bytes at a time
+            pc.inc_program_counter()?;
         }
 
         if let Err(error) = self.execute_instruction(ir_reg_addr) {

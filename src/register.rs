@@ -53,6 +53,12 @@ impl Register {
             value: value,
         }
     }
+
+    // I have to increment twice because each memory block is one byte, while my machine is 16-bit, which means i should read 2 bytes at a time
+    pub fn inc_program_counter(&mut self) -> Result<()> {
+        self.value = self.value.checked_add(2).ok_or(VMError::Overflow)?;
+        Ok(())
+    }
 }
 
 pub struct RegisterBank {
