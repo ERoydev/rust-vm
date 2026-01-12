@@ -22,6 +22,13 @@ pub trait BusDevice {
         // If the first write fails the second is not attempted, and the result is false, so called circuit
         self.write(addr, low_byte as u8)?;
         self.write(addr + 1, high_byte as u8)?;
+
+        // ===== LOGGING
+        println!("Write on Addr: {}, Value: {}", addr, low_byte);
+        println!("Write on Addr: {}, Value: {}", addr + 1, high_byte);
+
+        let proba = self.read2(addr).unwrap();
+        println!("Result on Addr: {}, Value: {}\n", addr, proba);
         Ok(())
     }
 
@@ -39,5 +46,47 @@ pub trait BusDevice {
             }
         }
         return true;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::{Result, VMError};
+
+    struct MockBus {
+        memory: [u8; 1024],
+    }
+
+    impl MockBus {
+        fn new() -> Self {
+            Self { memory: [0; 1024] }
+        }
+    }
+
+    impl BusDevice for MockBus {
+        fn read(&self, addr: VMWord) -> Option<u8> {
+            self.memory.get(addr as usize).copied()
+        }
+        fn write(&mut self, addr: VMWord, value: u8) -> Result<()> {
+            if let Some(slot) = self.memory.get_mut(addr as usize) {
+                *slot = value;
+                Ok(())
+            } else {
+                Err(VMError::OutOfBounds)
+            }
+        }
+        fn memory_range(&self) -> usize {
+            self.memory.len()
+        }
+    }
+
+    #[test]
+    fn test_write2_reads_back_correct_value() {
+        let mut bus = MockBus::new();
+        let addr = 10;
+        let value: u16 = 0x3005;
+        bus.write2(addr, value).unwrap();
+        assert_eq!(bus.read2(addr), Some(value));
     }
 }

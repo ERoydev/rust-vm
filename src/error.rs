@@ -13,6 +13,7 @@ pub enum VMError {
 
     // vm
     Halted,
+    MemoryReadError,
 
     // -- Externals
     #[from]
@@ -25,6 +26,7 @@ impl VMError {
             VMError::UnknownRegister => "Unknown Register",
             VMError::OutOfBounds => "Memory access is out of bounds",
             VMError::Halted => "Cannot use a Halted machine",
+            VMError::MemoryReadError => "Memory read failed",
             _ => "Else",
         }
     }

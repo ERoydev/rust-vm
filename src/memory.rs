@@ -2,7 +2,7 @@ use crate::error::{Result, VMError};
 use crate::{bus::BusDevice, vm::VMWord};
 
 pub struct LinearMemory {
-    bytes: Vec<u8>, // mem
+    pub bytes: Vec<u8>, // mem
     size: usize,
 }
 

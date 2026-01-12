@@ -32,6 +32,7 @@ impl VM {
 
     pub fn set_memory(&mut self, memory: Box<dyn BusDevice>) {
         self.memory = memory;
+        log::info!("Set a new memory");
     }
 
     pub fn step(&mut self) -> Result<()> {
@@ -68,8 +69,6 @@ impl VM {
         if let Err(_) = self.memory.write2(destination_reg.value, source_reg.value) {
             self.halt();
         }
-
-        println!("Writed");
     }
 
     pub fn copy(&mut self, address_reg: Register, destination_reg: Register) {
@@ -86,16 +85,19 @@ impl VM {
         It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
     */
 
-    pub fn execute_instruction(&self, instruction: u16) -> Result<()> {
+    pub fn execute_instruction(&self, ir_reg_addr: VMWord) -> Result<()> {
         // Decode the instruction
-        // println!("IX: {}", instruction);
-        if let Some(s) = self.memory.read2(instruction) {
-            println!("Res: {}", s);
-        } else {
-            // handle the None case if needed
-        }
+        let instruction = match self.memory.read2(ir_reg_addr) {
+            Some(val) => val,
+            None => return Err(VMError::MemoryReadError)
+        };
+
+        let opcode = instruction >> 12;
+        println!("Opcode: {}", opcode);
+
+
+  
         // let opcode = instruction >> 12;
-        // println!("Opcode: {}", opcode);
 
         Ok(())
         // TODO: Finish
@@ -111,13 +113,21 @@ impl VM {
         if self.halted {
             return Err(VMError::Halted);
         }
-        
-        let mut ir_val = self.registers.get_register_read_only(RegisterId::RIR.id())?.value;
-        let pc_val = self.registers.get_register_read_only(RegisterId::RPC as u8)?.value;
+
+        let mut ir_reg_addr = self
+            .registers
+            .get_register_read_only(RegisterId::RIR.id())?
+            .value;
+
+        let pc_reg_addr = self
+            .registers
+            .get_register_read_only(RegisterId::RPC.id())?
+            .value;
+
         {
             let ir = self.registers.get_register_mut(RegisterId::RIR.id())?;
-            ir.value = pc_val;
-            ir_val = pc_val;
+            ir.value = pc_reg_addr;
+            ir_reg_addr = pc_reg_addr;
         }
 
         {
@@ -125,7 +135,7 @@ impl VM {
             pc.value += 1;
         }
 
-        if let Err(error) = self.execute_instruction(ir_val) {
+        if let Err(error) = self.execute_instruction(ir_reg_addr) {
             self.halt();
             return Err(error);
         }

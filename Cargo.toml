@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 derive_more = { version = "2.1.1", features = ["from", "display"] }
+env_logger = "0.11.8"
+log = "0.4.29"

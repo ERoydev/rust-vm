@@ -1,3 +1,4 @@
+use crate::constants::START_ADDRESS;
 use crate::error::{Result, VMError};
 use crate::vm::VMWord;
 use std::collections::HashMap;
@@ -100,10 +101,9 @@ impl RegisterBank {
                 RegisterId::RPC.id(),
                 Register {
                     id: RegisterId::RPC,
-                    value: 0x100,
+                    value: START_ADDRESS, // PC is on the address where the program first instruction is loaded in memory, VM should load programs at 0x100 in this case
                 },
-            ), // PC is on the address where the program first instruction is loaded in memory.
-            // VM should load programs at 0x100 in this case
+            ),
             (
                 RegisterId::RBP.id(),
                 Register {
@@ -123,8 +123,8 @@ impl RegisterBank {
                 Register {
                     id: RegisterId::RIR,
                     value: 0x00,
-                }
-            )
+                },
+            ),
         ]
         .into();
 
