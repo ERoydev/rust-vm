@@ -17,9 +17,9 @@ pub struct Config {}
 pub trait VMOperations {
     fn halt(&mut self, _: Register, _: Register);
     fn read(&mut self, source_reg: Register, destination_reg: Register);
-    fn write(&mut self, destination_reg: Register, source_reg: Register);
-    fn copy(&mut self, address_reg: Register, destination_reg: Register);
-    fn add(&mut self, address_reg: Register, destination_reg: Register);
+    fn write(&mut self, source_reg: Register, destination_reg: Register);
+    fn copy(&mut self, source_reg: Register, destination_reg: Register);
+    fn add(&mut self, source_reg: Register, destination_reg: Register);
 }
 
 // It will simulate the computer for the 16bit VM
@@ -65,7 +65,7 @@ impl VM {
         // Decode the instruction
         let instruction = match self.memory.read2(ir_reg_addr) {
             Some(val) => val,
-            None => return Err(VMError::MemoryReadError)
+            None => return Err(VMError::MemoryReadError),
         };
 
         let opcode = Opcode::try_from((instruction >> 12) as u8)?;
@@ -78,11 +78,11 @@ impl VM {
 
         // Opcode dispatcher invokes the VM to work with the register operations
         match opcode {
-            Opcode::HALT => self.halt(dest_reg, src_reg),
-            Opcode::READ => self.read(dest_reg, src_reg),
-            Opcode::WRITE => self.write(dest_reg, src_reg),
-            Opcode::COPY => self.copy(dest_reg, src_reg),
-            Opcode::ADD => self.add(dest_reg, src_reg),
+            Opcode::HALT => self.halt(src_reg, dest_reg),
+            Opcode::READ => self.read(src_reg, dest_reg),
+            Opcode::WRITE => self.write(src_reg, dest_reg),
+            Opcode::COPY => self.copy(src_reg, dest_reg),
+            Opcode::ADD => self.add(src_reg, dest_reg),
         }
 
         Ok(())
@@ -140,7 +140,7 @@ impl VM {
 }
 
 /// Implements the core instruction set operations for the VM.
-/// 
+///
 /// These methods correspond to the fundamental instructions that the VM can execute,
 /// such as halting, reading, writing, copying, and adding values.
 /// Each method is invoked in response to a specific opcode during program execution.
@@ -162,18 +162,18 @@ impl VMOperations for VM {
         }
     }
 
-    fn write(&mut self, destination_reg: Register, source_reg: Register) {
+    fn write(&mut self, source_reg: Register, destination_reg: Register) {
         if let Err(_) = self.memory.write2(destination_reg.value, source_reg.value) {
             self.halted = true;
         }
     }
 
-    fn copy(&mut self, address_reg: Register, destination_reg: Register) {
+    fn copy(&mut self, source_reg: Register, destination_reg: Register) {
         // self.memory.copy(address_reg.value, destination_reg.value, n)
         // destination_reg.value = address_reg.value
     }
 
-    fn add(&mut self, address_reg: Register, destination_reg: Register) {
+    fn add(&mut self, source_reg: Register, destination_reg: Register) {
         // destination_reg.value = address_reg.value + destination_reg.value
     }
 }
