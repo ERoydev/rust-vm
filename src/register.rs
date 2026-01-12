@@ -31,6 +31,12 @@ pub enum RegisterId {
     RIR, // holds current instruction being executed when VM fetches an ix from memory
 }
 
+impl RegisterId {
+    pub fn id(&self) -> u8 {
+        *self as u8
+    }
+}
+
 pub const MAX_REGS: usize = 8;
 
 #[derive(Clone, Copy, Debug)]
@@ -56,42 +62,42 @@ impl RegisterBank {
     pub fn new() -> Self {
         let reg_hashmap: HashMap<u8, Register> = [
             (
-                RegisterId::RR0 as u8,
+                RegisterId::RR0.id(),
                 Register {
                     id: RegisterId::RR0,
                     value: 0x00,
                 },
             ),
             (
-                RegisterId::RR1 as u8,
+                RegisterId::RR1.id(),
                 Register {
                     id: RegisterId::RR1,
                     value: 0x00,
                 },
             ),
             (
-                RegisterId::RR2 as u8,
+                RegisterId::RR2.id(),
                 Register {
                     id: RegisterId::RR2,
                     value: 0x00,
                 },
             ),
             (
-                RegisterId::RR3 as u8,
+                RegisterId::RR3.id(),
                 Register {
                     id: RegisterId::RR3,
                     value: 0x00,
                 },
             ),
             (
-                RegisterId::RSP as u8,
+                RegisterId::RSP.id(),
                 Register {
                     id: RegisterId::RSP,
                     value: 0x00,
                 },
             ),
             (
-                RegisterId::RPC as u8,
+                RegisterId::RPC.id(),
                 Register {
                     id: RegisterId::RPC,
                     value: 0x100,
@@ -99,19 +105,26 @@ impl RegisterBank {
             ), // PC is on the address where the program first instruction is loaded in memory.
             // VM should load programs at 0x100 in this case
             (
-                RegisterId::RBP as u8,
+                RegisterId::RBP.id(),
                 Register {
                     id: RegisterId::RBP,
                     value: 0x00,
                 },
             ),
             (
-                RegisterId::RFLAGS as u8,
+                RegisterId::RFLAGS.id(),
                 Register {
                     id: RegisterId::RFLAGS,
                     value: 0x00,
                 },
             ),
+            (
+                RegisterId::RIR.id(),
+                Register {
+                    id: RegisterId::RIR,
+                    value: 0x00,
+                }
+            )
         ]
         .into();
 
@@ -127,7 +140,11 @@ impl RegisterBank {
         }
     }
 
-    pub fn get_register_mut(&mut self, name: u8) -> Option<&mut Register> {
-        self.register_map.get_mut(&name)
+    pub fn get_register_mut(&mut self, name: u8) -> Result<&mut Register> {
+        if let Some(reg) = self.register_map.get_mut(&name) {
+            Ok(reg)
+        } else {
+            Err(VMError::UnknownRegister)
+        }
     }
 }

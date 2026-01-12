@@ -4,7 +4,7 @@ use crate::vm::VMWord;
 // Interface for read and write access to memory or devices at specific addresses
 pub trait BusDevice {
     fn read(&self, addr: VMWord) -> Option<u8>;
-    fn write(&mut self, addr: VMWord, value: u8) -> Result<()>; // TODO: When we find the Error types, then define the Result type here 
+    fn write(&mut self, addr: VMWord, value: u8) -> Result<()>;
     fn memory_range(&self) -> usize;
 
     fn read2(&self, addr: VMWord) -> Option<u16> {

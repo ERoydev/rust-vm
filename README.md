@@ -17,7 +17,7 @@ This project is a simple, educational 16-bit virtual machine (VM) written in Rus
 ## Architecture Overview
 
 The VM consists of:
-- **Registers:** 8 registers (R0–R3 general-purpose, RSP stack pointer, RPC program counter, RBP base pointer, RFLAGS flags)
+- **Registers:** 9 registers (R0–R3 general-purpose, RSP stack pointer, RPC program counter, RBP base pointer, RFLAGS flags, RIR)
 - **Memory:** Linear address space, 16-bit words
 - **Instruction Set:** Each instruction is 16 bits, with 4 bits for the opcode and the rest for operands
 - **Execution Loop:** Fetch-decode-execute cycle, halts on errors or HALT instruction
@@ -39,6 +39,7 @@ cargo run
 ## Resources & Inspiration
 - [Writing an LC-3 VM in C](https://www.jmeiners.com/lc3-vm/)
 - [Writing a VM (Stephen Gream)](https://stephengream.com/writing-a-vm-part-one/)
+- [Build Virtual Machine](https://www.youtube.com/watch?v=OjaAToVkoTw&list=PLSewtCfzWXPKemmD0_hi_G8ZOvYxSJDpo&index=10)
 
 ---
 This project is for learning and experimentation. Contributions and questions are welcome!

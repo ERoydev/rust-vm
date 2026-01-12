@@ -25,10 +25,15 @@ impl VM {
     pub fn new() -> Self {
         Self {
             registers: RegisterBank::new(),
-            memory: Box::new(LinearMemory::new(5000)),
+            memory: Box::new(LinearMemory::new(0)),
             halted: false,
         }
     }
+
+    pub fn set_memory(&mut self, memory: Box<dyn BusDevice>) {
+        self.memory = memory;
+    }
+
     pub fn step(&mut self) -> Result<()> {
         // When the VM runs, we going to run a program(binary) and the VM is going to call step on that program until its done until we have some kind of outcome
         match self.registers.get_register_read_only(RegisterId::RPC as u8) {
@@ -49,7 +54,7 @@ impl VM {
     pub fn read(&mut self, source_reg: Register, destination_reg: Register) {
         if let Some(val) = self.memory.read2(source_reg.value) {
             // Update the destination register in the bank
-            if let Some(dest) = self.registers.get_register_mut(destination_reg.id as u8) {
+            if let Ok(dest) = self.registers.get_register_mut(destination_reg.id as u8) {
                 dest.value = val;
             } else {
                 self.halt();
@@ -81,21 +86,49 @@ impl VM {
         It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
     */
 
-    pub fn execute_instruction(instruction: u16) {
+    pub fn execute_instruction(&self, instruction: u16) -> Result<()> {
         // Decode the instruction
-        let opcode = instruction >> 12;
-        println!("Opcode: {}", opcode);
+        // println!("IX: {}", instruction);
+        if let Some(s) = self.memory.read2(instruction) {
+            println!("Res: {}", s);
+        } else {
+            // handle the None case if needed
+        }
+        // let opcode = instruction >> 12;
+        // println!("Opcode: {}", opcode);
 
+        Ok(())
         // TODO: Finish
     }
 
     // If not halted, execute the instruction
-    pub fn tick(&self) -> Result<()> {
+    // It designed to advance the VM by one instruction cycle, loads the next ix address from PC to IR
+    // Increments PC to point to next ix
+    // Executes the ix currently in the ix register
+    // Simulates the fetch-decode-execute cycle typical in CPUs
+    // Each VM instance is dedicated to run one program from start to finish.
+    pub fn tick(&mut self) -> Result<()> {
         if self.halted {
             return Err(VMError::Halted);
         }
+        
+        let mut ir_val = self.registers.get_register_read_only(RegisterId::RIR.id())?.value;
+        let pc_val = self.registers.get_register_read_only(RegisterId::RPC as u8)?.value;
+        {
+            let ir = self.registers.get_register_mut(RegisterId::RIR.id())?;
+            ir.value = pc_val;
+            ir_val = pc_val;
+        }
 
-        // self.registers.get_register_read_only(RegisterId::RBP);
+        {
+            let pc = self.registers.get_register_mut(RegisterId::RPC.id())?;
+            pc.value += 1;
+        }
+
+        if let Err(error) = self.execute_instruction(ir_val) {
+            self.halt();
+            return Err(error);
+        }
 
         Ok(())
     }
@@ -129,7 +162,7 @@ So i decide how much bit/byte to give for my opcode when i decide how much uniqu
 // }
 
 enum Opcode {
-    HALT,
+    HALT, // 0x01
     READ,
     WRITE,
     COPY,
