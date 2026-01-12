@@ -1,6 +1,5 @@
-use crate::constants::START_ADDRESS;
+use crate::constants::{START_ADDRESS, VmAddr};
 use crate::error::{Result, VMError};
-use crate::vm::VMWord;
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
@@ -44,7 +43,7 @@ pub const MAX_REGS: usize = 8;
 #[derive(Clone, Copy, Debug)]
 pub struct Register {
     pub id: RegisterId,
-    pub value: VMWord, // address
+    pub value: VmAddr, // address
 }
 
 impl Register {

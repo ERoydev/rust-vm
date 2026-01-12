@@ -1,13 +1,15 @@
-use crate::error::Result;
-use crate::vm::VMWord;
+use crate::{
+    constants::VmAddr,
+    error::{Result, VMError},
+};
 
 // Interface for read and write access to memory or devices at specific addresses
 pub trait BusDevice {
-    fn read(&self, addr: VMWord) -> Option<u8>;
-    fn write(&mut self, addr: VMWord, value: u8) -> Result<()>;
+    fn read(&self, addr: VmAddr) -> Option<u8>;
+    fn write(&mut self, addr: VmAddr, value: u8) -> Result<()>;
     fn memory_range(&self) -> usize;
 
-    fn read2(&self, addr: VMWord) -> Option<u16> {
+    fn read2(&self, addr: VmAddr) -> Option<u16> {
         if let Some(x0) = self.read(addr) {
             if let Some(x1) = self.read(addr + 1) {
                 return Some((x0 as u16) | ((x1 as u16) << 8));
@@ -15,7 +17,7 @@ pub trait BusDevice {
         };
         None
     }
-    fn write2(&mut self, addr: VMWord, value: u16) -> Result<()> {
+    fn write2(&mut self, addr: VmAddr, value: u16) -> Result<()> {
         let low_byte = value & 0xff;
         let high_byte = (value & 0xff00) >> 8;
 
@@ -27,25 +29,41 @@ pub trait BusDevice {
         println!("Write on Addr: {}, Value: {}", addr, low_byte);
         println!("Write on Addr: {}, Value: {}", addr + 1, high_byte);
 
-        let proba = self.read2(addr).unwrap();
-        println!("Result on Addr: {}, Value: {}\n", addr, proba);
+        let read_written_addr = self.read2(addr).unwrap();
+        println!("Result on Addr: {}, Value: {}\n", addr, read_written_addr);
         Ok(())
     }
 
-    fn copy(&mut self, from: u16, to: u16, n: u16) -> bool {
+    fn copy(&mut self, from_addr: VmAddr, to_addr: VmAddr) -> Result<()> {
         // So from and to are addresses, each address points to one byte in the memory -> [u8; 5000]
-        // So in terms of that `n` represents how many bytes i want to copy
-        for i in 0..n {
-            if let Some(x) = self.read(from + i) {
-                if let Err(err) = self.write(to + i, x) {
-                    eprintln!("Memory error: {}", err.message());
-                    return false;
-                }
-            } else {
-                return false;
+        // TODO: Maybe its better to pass whole Register object and access the value on that memory address by getter, instead of passing register address like that
+        if let Some(bytes) = self.read2(from_addr) {
+            if let Err(err) = self.write2(to_addr, bytes) {
+                return Err(err);
             }
+        } else {
+            return Err(VMError::CopyInstructionFail);
         }
-        return true;
+
+        Ok(())
+    }
+
+    fn add(&mut self, from_addr: VmAddr, to_addr: VmAddr) -> Result<()> {
+        if let (Some(reg_1_bytes), Some(reg_2_bytes)) = (self.read2(from_addr), self.read2(to_addr))
+        {
+            let add_res = reg_1_bytes
+                .checked_add(reg_2_bytes)
+                .expect("Add instruction failed with overflow");
+
+            // Store the ADD result in the destination register
+            if let Err(err) = self.write2(to_addr, add_res) {
+                return Err(err);
+            }
+        } else {
+            return Err(VMError::AddInstructionFail);
+        }
+
+        Ok(())
     }
 }
 
@@ -65,10 +83,10 @@ mod tests {
     }
 
     impl BusDevice for MockBus {
-        fn read(&self, addr: VMWord) -> Option<u8> {
+        fn read(&self, addr: VmAddr) -> Option<u8> {
             self.memory.get(addr as usize).copied()
         }
-        fn write(&mut self, addr: VMWord, value: u8) -> Result<()> {
+        fn write(&mut self, addr: VmAddr, value: u8) -> Result<()> {
             if let Some(slot) = self.memory.get_mut(addr as usize) {
                 *slot = value;
                 Ok(())

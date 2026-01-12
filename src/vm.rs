@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::constants::VmAddr;
 use crate::error::Result;
 use crate::{
     bus::BusDevice,
@@ -7,9 +8,6 @@ use crate::{
     memory::LinearMemory,
     register::{Register, RegisterBank, RegisterId},
 };
-
-// VM word is currently 16-bit since i build 16bit VM
-pub type VMWord = u16;
 
 // The VM config
 pub struct Config {}
@@ -61,7 +59,7 @@ impl VM {
         It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
     */
 
-    pub fn execute_instruction(&mut self, ir_reg_addr: VMWord) -> Result<()> {
+    pub fn execute_instruction(&mut self, ir_reg_addr: VmAddr) -> Result<()> {
         // Decode the instruction
         let instruction = match self.memory.read2(ir_reg_addr) {
             Some(val) => val,
@@ -69,6 +67,9 @@ impl VM {
         };
 
         let opcode = Opcode::try_from((instruction >> 12) as u8)?;
+        println!("Address called: {}", ir_reg_addr);
+        println!("Instruction: {:016b}", instruction);
+        println!("OPCODE RECEIVED: {:?}", opcode);
         let dest_reg_i = ((instruction & 0x0F00) >> 8) as u8;
         let source_reg_i = ((instruction & 0x00F0) >> 4) as u8;
         let immediate_value = instruction & 0x000F;
@@ -117,6 +118,7 @@ impl VM {
 
         {
             let pc = self.registers.get_register_mut(RegisterId::RPC.id())?;
+            // TODO: The error is here since in memory i store it in u8 bytes, while i have 16-bit VM which means that i should read/write 2 bytes at a time
             pc.value += 1;
         }
 
@@ -169,12 +171,19 @@ impl VMOperations for VM {
     }
 
     fn copy(&mut self, source_reg: Register, destination_reg: Register) {
-        // self.memory.copy(address_reg.value, destination_reg.value, n)
-        // destination_reg.value = address_reg.value
+        if let Err(error) = self.memory.copy(source_reg.value, destination_reg.value) {
+            eprintln!("COPY error: {}", error.message());
+            self.halted = true;
+        }
     }
 
     fn add(&mut self, source_reg: Register, destination_reg: Register) {
-        // destination_reg.value = address_reg.value + destination_reg.value
+        println!("Add triggered");
+
+        if let Err(error) = self.memory.add(source_reg.value, destination_reg.value) {
+            eprintln!("ADD error: {}", error.message());
+            self.halted = true;
+        }
     }
 }
 
@@ -210,8 +219,8 @@ So i decide how much bit/byte to give for my opcode when i decide how much uniqu
 
 #[derive(Debug)]
 enum Opcode {
-    HALT, // 0x01
-    READ,
+    HALT, // 0x00
+    READ, // 0x01
     WRITE,
     COPY,
     ADD,
@@ -221,6 +230,7 @@ impl TryFrom<u8> for Opcode {
     type Error = VMError;
 
     fn try_from(value: u8) -> Result<Self> {
+        println!("Opcode value: {}", value);
         match value {
             0 => Ok(Opcode::HALT),
             1 => Ok(Opcode::READ),

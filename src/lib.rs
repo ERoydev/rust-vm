@@ -46,7 +46,6 @@ pub fn start_vm() {
 
     vm.set_memory(Box::new(memory));
 
-    // let _ = vm.tick();
     while !vm.halted {
         if let Err(e) = vm.tick() {
             eprintln!("Vm error: {}", e.message());

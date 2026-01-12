@@ -16,6 +16,10 @@ pub enum VMError {
     MemoryReadError,
     OpcodeDoesNotExist,
 
+    // bus
+    AddInstructionFail,
+    CopyInstructionFail,
+
     // -- Externals
     #[from]
     Io(std::io::Error),

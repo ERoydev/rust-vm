@@ -1,5 +1,6 @@
+use crate::bus::BusDevice;
+use crate::constants::VmAddr;
 use crate::error::{Result, VMError};
-use crate::{bus::BusDevice, vm::VMWord};
 
 pub struct LinearMemory {
     pub bytes: Vec<u8>, // mem
@@ -17,11 +18,11 @@ impl LinearMemory {
 }
 
 impl BusDevice for LinearMemory {
-    fn read(&self, addr: VMWord) -> Option<u8> {
+    fn read(&self, addr: VmAddr) -> Option<u8> {
         self.bytes.get(addr as usize).copied()
     }
 
-    fn write(&mut self, addr: VMWord, value: u8) -> Result<()> {
+    fn write(&mut self, addr: VmAddr, value: u8) -> Result<()> {
         let addr_idx: usize = usize::from(addr);
         if addr_idx < self.size {
             self.bytes[addr_idx] = value;
