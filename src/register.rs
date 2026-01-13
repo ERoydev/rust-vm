@@ -1,7 +1,7 @@
 use crate::constants::{START_ADDRESS, VMWord};
 use crate::error::{Result, VMError};
-use std::collections::HashMap;
-use wincode_derive::{SchemaWrite};
+use std::collections::BTreeMap;
+use wincode_derive::SchemaWrite;
 
 /*
     Register is a slot for storing a single value on the CPU. Registers are like workbench of the CPU.
@@ -62,12 +62,12 @@ impl Register {
 
 #[derive(Debug, SchemaWrite)]
 pub struct RegisterBank {
-    pub register_map: HashMap<u8, Register>,
+    pub register_map: BTreeMap<u8, Register>, // TODO: Storing registers like that is not the most efficient way, but i am going to leave it for now, to experiment with zk first.
 }
 
 impl RegisterBank {
     pub fn new() -> Self {
-        let reg_hashmap: HashMap<u8, Register> = [
+        let reg_hashmap: BTreeMap<u8, Register> = [
             (
                 RegisterId::RR0.id(),
                 Register {

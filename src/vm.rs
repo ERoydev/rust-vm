@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 
@@ -20,11 +20,11 @@ pub struct Config {}
 pub struct TraceEntry {
     pc: VMWord,
     opcode: Opcode,
-    registers: HashMap<u8, Register>, // TODO: Storing registers like that could be expensive
+    registers: BTreeMap<u8, Register>, // TODO: Storing registers like that is not the most efficient way, but i am going to leave it for now, to experiment with zk first.
 }
 
 impl TraceEntry {
-    fn new(pc: VMWord, opcode: Opcode, registers: HashMap<u8, Register>) -> Self {
+    fn new(pc: VMWord, opcode: Opcode, registers: BTreeMap<u8, Register>) -> Self {
         Self {
             pc,
             opcode,

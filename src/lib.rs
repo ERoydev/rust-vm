@@ -1,4 +1,6 @@
-use crate::{bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM, zk::PublicInputs};
+use crate::{
+    bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM, zk::PublicInputs,
+};
 
 pub mod bus;
 pub mod constants;

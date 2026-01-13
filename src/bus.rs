@@ -62,7 +62,9 @@ mod tests {
 
     impl MockBus {
         fn new() -> Self {
-            Self { memory: vec![0; 1024] }
+            Self {
+                memory: vec![0; 1024],
+            }
         }
     }
 
