@@ -18,6 +18,7 @@ pub trait VMOperations {
     fn copy(&mut self, source_reg: Register, destination_reg: Register);
     fn add(&mut self, source_reg: Register, destination_reg: Register);
     fn load(&mut self, source_reg: Register, destination_reg: Register);
+    fn load_imm(&mut self, _: Register, _: Register);
     fn store_out(&mut self, source_reg: Register, _: Register);
 }
 
@@ -68,7 +69,7 @@ impl VM {
             Opcode::COPY => self.copy(src_reg, dest_reg),
             Opcode::ADD => self.add(src_reg, dest_reg),
             Opcode::LOAD => self.load(src_reg, dest_reg),
-            Opcode::LOAD_IMM => println!("Immediate value loaded"),
+            Opcode::LOAD_IMM => self.load_imm(src_reg, dest_reg),
             Opcode::STORE_OUT => self.store_out(src_reg, dest_reg),
         }
 
@@ -178,6 +179,10 @@ impl VMOperations for VM {
             eprintln!("LOAD instruction fails");
             self.halted = true;
         }
+    }
+
+    fn load_imm(&mut self, _: Register, _: Register) {
+        print!("Immediate value loaded successfully");
     }
 
     fn store_out(&mut self, source_reg: Register, _: Register) {
