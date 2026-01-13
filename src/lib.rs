@@ -39,6 +39,7 @@ pub fn start_vm() {
     }
 
     vm.set_memory(Box::new(memory));
+    vm.enable_trace();
 
     while !vm.halted {
         if let Err(e) = vm.tick() {

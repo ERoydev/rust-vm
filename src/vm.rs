@@ -1,5 +1,9 @@
 #![allow(dead_code)]
 
+use std::collections::HashMap;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+
 use crate::constants::{START_ADDRESS, VMWord};
 use crate::error::Result;
 use crate::{
@@ -11,6 +15,23 @@ use crate::{
 
 // The VM config
 pub struct Config {}
+
+#[derive(Debug, Clone)]
+pub struct TraceEntry {
+    pc: VMWord,
+    opcode: Opcode,
+    registers: HashMap<u8, Register>, // TODO: Storing registers like that could be expensive
+}
+
+impl TraceEntry {
+    fn new(pc: VMWord, opcode: Opcode, registers: HashMap<u8, Register>) -> Self {
+        Self {
+            pc,
+            opcode,
+            registers,
+        }
+    }
+}
 
 pub trait VMOperations {
     fn halt(&mut self, _: Register, _: Register);
@@ -27,6 +48,9 @@ pub struct VM {
     pub registers: RegisterBank,
     pub memory: Box<dyn BusDevice>, // main memory
     pub halted: bool, // Signal when the VM should stop processing instructions, after program finishes or encounter a fatal error
+
+    pub trace_enabled: bool,
+    pub trace_buffer: Vec<TraceEntry>, // store trace entries
 }
 
 impl VM {
@@ -35,29 +59,35 @@ impl VM {
             registers: RegisterBank::new(),
             memory: Box::new(LinearMemory::new(0)),
             halted: false,
+            trace_enabled: false,
+            trace_buffer: Vec::new(),
         }
     }
 
     pub fn set_memory(&mut self, memory: Box<dyn BusDevice>) {
         self.memory = memory;
-        log::info!("Set a new memory");
+        println!("Set a new memory");
+    }
+
+    pub fn enable_trace(&mut self) {
+        self.trace_enabled = true;
+        println!("Trace enabled");
     }
 
     /*
         Tick and execute_instruction will load an instruction into the IR and execute it if the machine is not halted.
         It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
     */
-
     pub fn execute_instruction(&mut self, instruction: VMWord) -> Result<()> {
         // Decode the instruction
         let opcode = Opcode::try_from((instruction >> 12) as u8)?;
-        println!("\n==== instruction execution ======");
-        println!("Instruction: {:016b}", instruction);
-        println!("OPCODE RECEIVED: {:?}", opcode);
-        println!("=== end of instruction execution =======\n");
         let dest_reg_i = ((instruction & 0x0F00) >> 8) as u8;
         let source_reg_i = ((instruction & 0x00F0) >> 4) as u8;
         let immediate_value = instruction & 0x000F;
+
+        if self.trace_enabled {
+            self.trace(opcode);
+        }
 
         let dest_reg = self.resolve_register_or_immediate(dest_reg_i, immediate_value)?;
         let src_reg = self.resolve_register_or_immediate(source_reg_i, immediate_value)?;
@@ -127,6 +157,20 @@ impl VM {
         }
         Ok(reg)
     }
+
+    fn trace(&mut self, opcode: Opcode) {
+        // TODO: Improve error handling
+        let pc_addr = self
+            .registers
+            .get_register_read_only(RegisterId::RPC.id())
+            .unwrap()
+            .value;
+        self.trace_buffer.push(TraceEntry::new(
+            pc_addr,
+            opcode,
+            self.registers.register_map.clone(),
+        ));
+    }
 }
 
 /// Implements the core instruction set operations for the VM.
@@ -137,6 +181,18 @@ impl VM {
 impl VMOperations for VM {
     // TODO: Improve error handling for VMOperations
     fn halt(&mut self, _: Register, _: Register) {
+        // Ensure the .logs directory exists
+        let _ = fs::create_dir_all(".logs");
+
+        // Write the logs for tracing
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(".logs/vm_trace.log")
+        {
+            writeln!(file, "VM trace: {:#?}", self.trace_buffer).unwrap();
+        }
+
         self.halted = true;
     }
 
@@ -224,7 +280,7 @@ So i decide how much bit/byte to give for my opcode when i decide how much uniqu
 // }
 
 /// It depends on the OPCODE, sometimes reg.value is a bytes holding data already taken from memory, at other opcodes reg.value is an address pointing to a location in memory
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[allow(non_camel_case_types)]
 enum Opcode {
     HALT,
@@ -234,6 +290,12 @@ enum Opcode {
     ADD,       // register <- register + register
     LOAD_IMM,  // register <- immediage
     STORE_OUT, // store result from R0 to memory at start address
+}
+
+impl Opcode {
+    pub fn id(&self) -> u8 {
+        *self as u8
+    }
 }
 
 impl TryFrom<u8> for Opcode {
