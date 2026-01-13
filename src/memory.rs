@@ -2,10 +2,10 @@ use crate::bus::BusDevice;
 use crate::constants::VmAddr;
 use crate::error::{Result, VMError};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinearMemory {
     pub bytes: Vec<u8>, // mem
-    size: usize,
+    pub size: usize,
 }
 
 impl LinearMemory {
@@ -35,5 +35,9 @@ impl BusDevice for LinearMemory {
 
     fn memory_range(&self) -> usize {
         self.size
+    }
+
+    fn as_bytes(&self) -> &Vec<u8> {
+        &self.bytes
     }
 }

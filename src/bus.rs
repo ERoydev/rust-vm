@@ -4,10 +4,11 @@ use crate::{
 };
 
 // Interface for read and write access to memory or devices at specific addresses
-pub trait BusDevice {
+pub trait BusDevice: std::fmt::Debug {
     fn read(&self, addr: VmAddr) -> Option<u8>;
     fn write(&mut self, addr: VmAddr, value: u8) -> Result<()>;
     fn memory_range(&self) -> usize;
+    fn as_bytes(&self) -> &Vec<u8>;
 
     fn read2(&self, addr: VmAddr) -> Option<u16> {
         if let Some(x0) = self.read(addr) {
@@ -54,13 +55,14 @@ mod tests {
     use super::*;
     use crate::error::{Result, VMError};
 
+    #[derive(Debug)]
     struct MockBus {
-        memory: [u8; 1024],
+        memory: Vec<u8>,
     }
 
     impl MockBus {
         fn new() -> Self {
-            Self { memory: [0; 1024] }
+            Self { memory: vec![0; 1024] }
         }
     }
 
@@ -78,6 +80,10 @@ mod tests {
         }
         fn memory_range(&self) -> usize {
             self.memory.len()
+        }
+
+        fn as_bytes(&self) -> &Vec<u8> {
+            &self.memory
         }
     }
 
