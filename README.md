@@ -24,6 +24,28 @@ The VM consists of:
 
 ![VM Architecture](https://stephengream.com/static/ab42d86625f01dc6f42bc7d10e4c7326/7c2a6/CPU_v0.1.png)
 
+## 16-bit Instruction Format
+
+Each instruction is 16 bits, divided as follows:
+
+| Bits         | Field         | Description                                 |
+|-------------|---------------|---------------------------------------------|
+| 15–12 (4)   | Opcode        | Operation to perform                        |
+| 11–8  (4)   | Register 1    | Destination register                        |
+| 7–4   (4)   | Register 2    | Source register                             |
+| 3–0   (4)   | Imm/Offset    | Immediate value or offset (opcode-dependent) |
+
+#### Visual Representation
+
+```
+┌───────┬────────────┬────────────┬────────────┐
+│Opcode │ Register 1 │ Register 2 │ Imm/Offset│
+└───────┴────────────┴────────────┴────────────┘
+     4 bits    4 bits      4 bits      4 bits
+```
+
+* The meaning of the last 4 bits (Imm/Ofs) depends on the opcode: it can be a small constant or an offset.
+  
 ## Example Usage
 
 Build the project:
