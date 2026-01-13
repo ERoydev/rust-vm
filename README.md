@@ -28,20 +28,22 @@ The VM consists of:
 
 Each instruction is 16 bits, divided as follows:
 
+> In my implementation, each register’s value can hold either actual data from memory or a memory address, depending on the OPCODE being used.
+
 | Bits         | Field         | Description                                 |
-|-------------|---------------|---------------------------------------------|
-| 15–12 (4)   | Opcode        | Operation to perform                        |
-| 11–8  (4)   | Register 1    | Destination register                        |
-| 7–4   (4)   | Register 2    | Source register                             |
-| 3–0   (4)   | Imm/Offset    | Immediate value or offset (opcode-dependent) |
+|------------- |---------------|---------------------------------------------|
+| 15–12 (4)    | Opcode        | Operation to perform                        |
+| 11–8  (4)    | Register 1    | Destination register                        |
+| 7–4   (4)    | Register 2    | Source register                             |
+| 3–0   (4)    | Imm/Offset    | Immediate value or offset (opcode-dependent)|
 
 #### Visual Representation
 
 ```
 ┌───────┬────────────┬────────────┬────────────┐
-│Opcode │ Register 1 │ Register 2 │ Imm/Offset│
+│Opcode │ Register 1 │ Register 2 │ Imm/Offset │
 └───────┴────────────┴────────────┴────────────┘
-     4 bits    4 bits      4 bits      4 bits
+ 4 bits  4 bits       4 bits       4 bits
 ```
 
 * The meaning of the last 4 bits (Imm/Ofs) depends on the opcode: it can be a small constant or an offset.
