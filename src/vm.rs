@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::constants::{START_ADDRESS, VMWord, VmAddr};
+use crate::constants::{START_ADDRESS, VMWord};
 use crate::error::Result;
 use crate::{
     bus::BusDevice,
@@ -86,11 +86,6 @@ impl VM {
             return Err(VMError::Halted);
         }
 
-        let mut ir_reg_val = self
-            .registers
-            .get_register_read_only(RegisterId::RIR.id())?
-            .value;
-
         // This holds the start address to read from memory
         let pc_reg_addr = self
             .registers
@@ -103,12 +98,10 @@ impl VM {
         {
             let ir = self.registers.get_register_mut(RegisterId::RIR.id())?;
             ir.value = raw_instruction;
-            ir_reg_val = raw_instruction;
         }
 
         {
             let pc = self.registers.get_register_mut(RegisterId::RPC.id())?;
-            // // TODO: The error is here since in memory i store it in u8 bytes, while i have 16-bit VM which means that i should read/write 2 bytes at a time
             pc.inc_program_counter()?;
         }
 
@@ -227,14 +220,15 @@ So i decide how much bit/byte to give for my opcode when i decide how much uniqu
 
 /// It depends on the OPCODE, sometimes reg.value is a bytes holding data already taken from memory, at other opcodes reg.value is an address pointing to a location in memory
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 enum Opcode {
     HALT,
-    COPY,     // register <- register
-    LOAD,     // register <- memory[address in register]
-    WRITE,    // memory[address in register] <- register
-    ADD,      // register <- register + register
-    LOAD_IMM, // register <- immediage
-    STORE_OUT, // store result from R0 to memory at start address 
+    COPY,      // register <- register
+    LOAD,      // register <- memory[address in register]
+    WRITE,     // memory[address in register] <- register
+    ADD,       // register <- register + register
+    LOAD_IMM,  // register <- immediage
+    STORE_OUT, // store result from R0 to memory at start address
 }
 
 impl TryFrom<u8> for Opcode {

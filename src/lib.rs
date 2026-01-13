@@ -1,10 +1,4 @@
-use crate::{
-    bus::BusDevice,
-    memory::LinearMemory,
-    register::{Register, RegisterId},
-    utils::{build_simple_program, instruction_builder},
-    vm::VM,
-};
+use crate::{bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM};
 
 pub mod bus;
 pub mod constants;

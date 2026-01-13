@@ -1,7 +1,6 @@
 use crate::constants::{START_ADDRESS, VMWord};
 use crate::error::{Result, VMError};
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hash, Hasher};
 
 /*
     Register is a slot for storing a single value on the CPU. Registers are like workbench of the CPU.
