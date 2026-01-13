@@ -1,4 +1,4 @@
-use crate::{bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM};
+use crate::{bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM, zk::PublicInputs};
 
 pub mod bus;
 pub mod constants;
@@ -7,7 +7,7 @@ pub mod memory;
 pub mod register;
 pub mod utils;
 pub mod vm;
-
+pub mod zk;
 use constants::START_ADDRESS;
 
 pub fn start_vm() {
@@ -16,6 +16,10 @@ pub fn start_vm() {
     let program = build_simple_program();
     let mut vm = VM::new();
     println!("Raw Program to execute: {:?}", program);
+
+    // Public inputs, used for the zk logic
+    let mut public_inputs = PublicInputs::new();
+    public_inputs.set_program(program.clone());
 
     // This loads (write) the program into memory at the specified addresses (NOT EXECUTE)
     let mut memory = LinearMemory::new(5000);
@@ -46,6 +50,11 @@ pub fn start_vm() {
             eprintln!("Vm error: {}", e.message());
             break;
         }
+    }
+
+    // Capture the OUTPUT state of the VM
+    if let Err(_) = public_inputs.set_output(&vm.registers, &vm.memory) {
+        eprintln!("Cannot capture the output state from the VM.");
     }
 
     if let Some(program_result) = vm.memory.read2(START_ADDRESS) {

@@ -238,7 +238,7 @@ impl VMOperations for VM {
     }
 
     fn load_imm(&mut self, _: Register, _: Register) {
-        print!("Immediate value loaded successfully");
+        // print!("Immediate value loaded successfully");
     }
 
     fn store_out(&mut self, source_reg: Register, _: Register) {

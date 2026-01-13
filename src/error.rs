@@ -23,6 +23,9 @@ pub enum VMError {
     // Math
     Overflow,
 
+    // zk
+    MemoryTypeIsNotSupported,
+
     // -- Externals
     #[from]
     Io(std::io::Error),

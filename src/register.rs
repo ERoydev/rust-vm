@@ -1,6 +1,7 @@
 use crate::constants::{START_ADDRESS, VMWord};
 use crate::error::{Result, VMError};
 use std::collections::HashMap;
+use wincode_derive::{SchemaWrite};
 
 /*
     Register is a slot for storing a single value on the CPU. Registers are like workbench of the CPU.
@@ -16,7 +17,7 @@ use std::collections::HashMap;
 
     R0 to R3 are general-purpose registers
 */
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, SchemaWrite)]
 #[repr(u8)]
 pub enum RegisterId {
     RR0, // return value register
@@ -37,7 +38,7 @@ impl RegisterId {
 pub const MAX_REGS: usize = 8;
 
 /// Registers should hold a copy of the value from memory, not a pointer, and not remove the value from memory.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, SchemaWrite)]
 pub struct Register {
     pub id: RegisterId,
     pub value: VMWord, // Bytes that it holds taken from memory
@@ -59,6 +60,7 @@ impl Register {
     }
 }
 
+#[derive(Debug, SchemaWrite)]
 pub struct RegisterBank {
     pub register_map: HashMap<u8, Register>,
 }
