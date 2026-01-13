@@ -17,7 +17,7 @@ This project is a simple, educational 16-bit virtual machine (VM) written in Rus
 ## Architecture Overview
 
 The VM consists of:
-- **Registers:** 9 registers (R0–R3 general-purpose, RSP stack pointer, RPC program counter, RBP base pointer, RFLAGS flags, RIR)
+- **Registers:** 6 registers (R0–R3 general-purpose, RPC program counter RIR)
 - **Memory:** Linear address space, 16-bit words
 - **Instruction Set:** Each instruction is 16 bits, with 4 bits for the opcode and the rest for operands
 - **Execution Loop:** Fetch-decode-execute cycle, halts on errors or HALT instruction

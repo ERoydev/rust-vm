@@ -47,24 +47,6 @@ pub trait BusDevice {
 
         Ok(())
     }
-
-    fn add(&mut self, from_addr: VmAddr, to_addr: VmAddr) -> Result<()> {
-        if let (Some(reg_1_bytes), Some(reg_2_bytes)) = (self.read2(from_addr), self.read2(to_addr))
-        {
-            let add_res = reg_1_bytes
-                .checked_add(reg_2_bytes)
-                .expect("Add instruction failed with overflow");
-
-            // Store the ADD result in the destination register
-            if let Err(err) = self.write2(to_addr, add_res) {
-                return Err(err);
-            }
-        } else {
-            return Err(VMError::AddInstructionFail);
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]

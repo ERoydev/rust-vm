@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::constants::VmAddr;
+use crate::constants::{START_ADDRESS, VMWord, VmAddr};
 use crate::error::Result;
 use crate::{
     bus::BusDevice,
@@ -14,11 +14,11 @@ pub struct Config {}
 
 pub trait VMOperations {
     fn halt(&mut self, _: Register, _: Register);
-    fn read(&mut self, source_reg: Register, destination_reg: Register);
     fn write(&mut self, source_reg: Register, destination_reg: Register);
     fn copy(&mut self, source_reg: Register, destination_reg: Register);
     fn add(&mut self, source_reg: Register, destination_reg: Register);
-    fn move_ix(&mut self, source_reg: Register, destination_reg: Register);
+    fn load(&mut self, source_reg: Register, destination_reg: Register);
+    fn store_out(&mut self, source_reg: Register, _: Register);
 }
 
 // It will simulate the computer for the 16bit VM
@@ -47,16 +47,10 @@ impl VM {
         It will decode the instruction into the opcode, the register indices and the immediate data and pass this along the instruction.
     */
 
-    pub fn execute_instruction(&mut self, ir_reg_addr: VmAddr) -> Result<()> {
+    pub fn execute_instruction(&mut self, instruction: VMWord) -> Result<()> {
         // Decode the instruction
-        let instruction = match self.memory.read2(ir_reg_addr) {
-            Some(val) => val,
-            None => return Err(VMError::MemoryReadError),
-        };
-
         let opcode = Opcode::try_from((instruction >> 12) as u8)?;
         println!("\n==== instruction execution ======");
-        println!("Address called: {}", ir_reg_addr);
         println!("Instruction: {:016b}", instruction);
         println!("OPCODE RECEIVED: {:?}", opcode);
         println!("=== end of instruction execution =======\n");
@@ -70,11 +64,12 @@ impl VM {
         // Opcode dispatcher invokes the VM to work with the register operations
         match opcode {
             Opcode::HALT => self.halt(src_reg, dest_reg),
-            Opcode::READ => self.read(src_reg, dest_reg),
             Opcode::WRITE => self.write(src_reg, dest_reg),
             Opcode::COPY => self.copy(src_reg, dest_reg),
             Opcode::ADD => self.add(src_reg, dest_reg),
-            Opcode::MOVE => self.move_ix(src_reg, dest_reg),
+            Opcode::LOAD => self.load(src_reg, dest_reg),
+            Opcode::LOAD_IMM => println!("Immediate value loaded"),
+            Opcode::STORE_OUT => self.store_out(src_reg, dest_reg),
         }
 
         Ok(())
@@ -91,20 +86,24 @@ impl VM {
             return Err(VMError::Halted);
         }
 
-        let mut ir_reg_addr = self
+        let mut ir_reg_val = self
             .registers
             .get_register_read_only(RegisterId::RIR.id())?
             .value;
 
+        // This holds the start address to read from memory
         let pc_reg_addr = self
             .registers
             .get_register_read_only(RegisterId::RPC.id())?
             .value;
 
+        // TODO: Improve error handling
+        let raw_instruction: u16 = self.memory.read2(pc_reg_addr).unwrap();
+
         {
             let ir = self.registers.get_register_mut(RegisterId::RIR.id())?;
-            ir.value = pc_reg_addr;
-            ir_reg_addr = pc_reg_addr;
+            ir.value = raw_instruction;
+            ir_reg_val = raw_instruction;
         }
 
         {
@@ -113,7 +112,7 @@ impl VM {
             pc.inc_program_counter()?;
         }
 
-        if let Err(error) = self.execute_instruction(ir_reg_addr) {
+        if let Err(error) = self.execute_instruction(raw_instruction) {
             self.halted = true;
             return Err(error);
         }
@@ -121,11 +120,15 @@ impl VM {
         Ok(())
     }
 
+    // If reg is RIM it will load the immediate value into that register immediately
     fn resolve_register_or_immediate(&mut self, reg_i: u8, imm_value: u16) -> Result<Register> {
         let reg;
-        if reg_i == RegisterId::RIM.id() {
-            reg = Register::new(RegisterId::RIM, imm_value);
+        if reg_i == RegisterId::RIM.id() && imm_value != 0 {
+            let tmp = self.registers.get_register_mut(reg_i)?;
+            tmp.value = imm_value;
+            reg = *tmp
         } else {
+            // When i deref a mut ref i return a copy of the Register, not a ref to the original
             reg = *self.registers.get_register_mut(reg_i)?;
         }
         Ok(reg)
@@ -138,50 +141,57 @@ impl VM {
 /// such as halting, reading, writing, copying, and adding values.
 /// Each method is invoked in response to a specific opcode during program execution.
 impl VMOperations for VM {
+    // TODO: Improve error handling for VMOperations
     fn halt(&mut self, _: Register, _: Register) {
         self.halted = true;
     }
 
-    fn read(&mut self, source_reg: Register, destination_reg: Register) {
-        if let Some(val) = self.memory.read2(source_reg.value) {
-            // Update the destination register in the bank
-            if let Ok(dest) = self.registers.get_register_mut(destination_reg.id as u8) {
-                dest.value = val;
-            } else {
-                self.halted = true;
-            }
-        } else {
-            self.halted = true;
-        }
-    }
-
     fn write(&mut self, source_reg: Register, destination_reg: Register) {
+        // dst_reg is address
         if let Err(_) = self.memory.write2(destination_reg.value, source_reg.value) {
             self.halted = true;
         }
     }
 
     fn copy(&mut self, source_reg: Register, destination_reg: Register) {
-        println!("Register addr: {}", source_reg.value);
-        if let Err(error) = self.memory.copy(source_reg.value, destination_reg.value) {
-            eprintln!("COPY error: {}", error.message());
-            self.halted = true;
-        }
+        let dest_register = self
+            .registers
+            .get_register_mut(destination_reg.id.id())
+            .unwrap();
+        dest_register.value = source_reg.value;
     }
 
     fn add(&mut self, source_reg: Register, destination_reg: Register) {
-        if let Err(error) = self.memory.add(source_reg.value, destination_reg.value) {
-            eprintln!("ADD error: {}", error.message());
+        let result = source_reg
+            .value
+            .checked_add(destination_reg.value)
+            .expect("Add instruction failed with overflow");
+        let dest_register = self
+            .registers
+            .get_register_mut(destination_reg.id.id())
+            .unwrap();
+        dest_register.value = result;
+    }
+
+    fn load(&mut self, source_reg: Register, destination_reg: Register) {
+        if let Some(val) = self.memory.read2(source_reg.value) {
+            // When load reg.value is interpret as an address to a memory location
+            let dest_register = self
+                .registers
+                .get_register_mut(destination_reg.id.id())
+                .unwrap();
+            dest_register.value = val;
+        } else {
+            eprintln!("LOAD instruction fails");
             self.halted = true;
         }
     }
 
-    fn move_ix(&mut self, source_reg: Register, destination_reg: Register) {
-        // TODO: handle errors correctly
-        let bytes = self.memory.read2(source_reg.value).unwrap();
-        self.memory.write2(source_reg.value, 0x0).unwrap();
-
-        self.memory.write2(destination_reg.value, bytes).unwrap();
+    fn store_out(&mut self, source_reg: Register, _: Register) {
+        if let Err(err) = self.memory.write2(START_ADDRESS, source_reg.value) {
+            eprintln!("Store out error: {}", err.message());
+            self.halted = true;
+        }
     }
 }
 
@@ -215,28 +225,31 @@ So i decide how much bit/byte to give for my opcode when i decide how much uniqu
 //     NOP,      // No operation
 // }
 
+/// It depends on the OPCODE, sometimes reg.value is a bytes holding data already taken from memory, at other opcodes reg.value is an address pointing to a location in memory
 #[derive(Debug)]
 enum Opcode {
-    HALT, // 0x00
-    READ, // 0x01
-    WRITE,
-    COPY,
-    ADD,
-    MOVE,
+    HALT,
+    COPY,     // register <- register
+    LOAD,     // register <- memory[address in register]
+    WRITE,    // memory[address in register] <- register
+    ADD,      // register <- register + register
+    LOAD_IMM, // register <- immediage
+    STORE_OUT, // store result from R0 to memory at start address 
 }
 
 impl TryFrom<u8> for Opcode {
     type Error = VMError;
 
     fn try_from(value: u8) -> Result<Self> {
-        println!("Opcode value: {}", value);
         match value {
             0 => Ok(Opcode::HALT),
-            1 => Ok(Opcode::READ),
-            2 => Ok(Opcode::WRITE),
-            3 => Ok(Opcode::COPY),
+            1 => Ok(Opcode::COPY),
+            2 => Ok(Opcode::LOAD),
+            3 => Ok(Opcode::WRITE),
             4 => Ok(Opcode::ADD),
-            5 => Ok(Opcode::MOVE),
+            5 => Ok(Opcode::LOAD_IMM),
+            6 => Ok(Opcode::STORE_OUT),
+
             _ => Err(VMError::OpcodeDoesNotExist),
         }
     }

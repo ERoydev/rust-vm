@@ -1,4 +1,4 @@
-use crate::constants::{START_ADDRESS, VmAddr};
+use crate::constants::{START_ADDRESS, VMWord};
 use crate::error::{Result, VMError};
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -24,10 +24,7 @@ pub enum RegisterId {
     RR1,
     RR2,
     RR3,
-    RSP,    // Stack pointer (function calls, local vars) points to the top of the stack
-    RPC,    // program counter, holds the address of the next ix to exec
-    RBP, // base pointer, used to ref the base of the current stack frame, aka Frame Pointer, it is read-only
-    RFLAGS, // condition flags (zero, carry, overflow) used for comparisons and branching
+    RPC, // program counter, holds the address of the next ix to exec
     RIR, // holds current instruction being executed when VM fetches an ix from memory
     RIM, // holds immediate values
 }
@@ -40,14 +37,15 @@ impl RegisterId {
 
 pub const MAX_REGS: usize = 8;
 
+/// Registers should hold a copy of the value from memory, not a pointer, and not remove the value from memory.
 #[derive(Clone, Copy, Debug)]
 pub struct Register {
     pub id: RegisterId,
-    pub value: VmAddr, // address
+    pub value: VMWord, // Bytes that it holds taken from memory
 }
 
 impl Register {
-    pub fn new(register_type: RegisterId, value: u16) -> Self {
+    pub fn new(register_type: RegisterId, value: VMWord) -> Self {
         Self {
             id: register_type,
             value: value,
@@ -56,6 +54,7 @@ impl Register {
 
     // I have to increment twice because each memory block is one byte, while my machine is 16-bit, which means i should read 2 bytes at a time
     pub fn inc_program_counter(&mut self) -> Result<()> {
+        // increments the address
         self.value = self.value.checked_add(2).ok_or(VMError::Overflow)?;
         Ok(())
     }
@@ -97,13 +96,6 @@ impl RegisterBank {
                 },
             ),
             (
-                RegisterId::RSP.id(),
-                Register {
-                    id: RegisterId::RSP,
-                    value: 0x00,
-                },
-            ),
-            (
                 RegisterId::RPC.id(),
                 Register {
                     id: RegisterId::RPC,
@@ -111,23 +103,17 @@ impl RegisterBank {
                 },
             ),
             (
-                RegisterId::RBP.id(),
-                Register {
-                    id: RegisterId::RBP,
-                    value: 0x00,
-                },
-            ),
-            (
-                RegisterId::RFLAGS.id(),
-                Register {
-                    id: RegisterId::RFLAGS,
-                    value: 0x00,
-                },
-            ),
-            (
+                // Should hold the instruction itself as bytes
                 RegisterId::RIR.id(),
                 Register {
                     id: RegisterId::RIR,
+                    value: 0x00,
+                },
+            ),
+            (
+                RegisterId::RIM.id(),
+                Register {
+                    id: RegisterId::RIM,
                     value: 0x00,
                 },
             ),
