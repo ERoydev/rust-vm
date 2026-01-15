@@ -59,6 +59,9 @@ pub fn start_vm() {
         eprintln!("Cannot capture the output state from the VM.");
     }
 
+    // println!("Public inputs: {:?}", public_inputs);
+    println!("Program: {:?}", public_inputs);
+
     if let Some(program_result) = vm.memory.read2(START_ADDRESS) {
         println!("The Value at address 0x100 is {}", program_result);
     } else {

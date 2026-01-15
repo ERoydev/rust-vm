@@ -20,10 +20,7 @@ impl PublicInputs {
 
     pub fn set_program(&mut self, program: Vec<VMWord>) {
         let mut hasher = Sha256::new();
-        // TODO: This is bad, find a safe way later
-        // Convert &[u16] to &[u8] safely
-        let bytes =
-            unsafe { std::slice::from_raw_parts(program.as_ptr() as *const u8, program.len() * 2) };
+        let bytes: &[u8] = bytemuck::cast_slice(&program);
         hasher.update(bytes);
         let hashed_program = hasher.finalize();
         let mut arr = [0u8; 32];

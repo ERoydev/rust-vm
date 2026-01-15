@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::Write;
 
 use crate::constants::{START_ADDRESS, VMWord};
@@ -19,15 +19,30 @@ pub struct Config {}
 #[derive(Debug, Clone)]
 pub struct TraceEntry {
     pc: VMWord,
+
     opcode: Opcode,
+    dst: u8,
+    src: u8,
+    imm: VMWord,
+
     registers: BTreeMap<u8, Register>, // TODO: Storing registers like that is not the most efficient way, but i am going to leave it for now, to experiment with zk first.
 }
 
 impl TraceEntry {
-    fn new(pc: VMWord, opcode: Opcode, registers: BTreeMap<u8, Register>) -> Self {
+    fn new(
+        pc: VMWord,
+        opcode: Opcode,
+        dst: u8,
+        src: u8,
+        imm: VMWord,
+        registers: BTreeMap<u8, Register>,
+    ) -> Self {
         Self {
             pc,
             opcode,
+            dst,
+            src,
+            imm,
             registers,
         }
     }
@@ -86,7 +101,7 @@ impl VM {
         let immediate_value = instruction & 0x000F;
 
         if self.trace_enabled {
-            self.trace(opcode);
+            self.trace(opcode, dest_reg_i, source_reg_i, immediate_value);
         }
 
         let dest_reg = self.resolve_register_or_immediate(dest_reg_i, immediate_value)?;
@@ -109,7 +124,7 @@ impl VM {
     // If not halted, execute the instruction
     // It designed to advance the VM by one instruction cycle, loads the next ix address from PC to IR
     // Increments PC to point to next ix
-    // Executes the ix currently in the ix register
+    // Executes the instruction currently in the instruction register
     // Simulates the fetch-decode-execute cycle typical in CPUs
     // Each VM instance is dedicated to run one program from start to finish.
     pub fn tick(&mut self) -> Result<()> {
@@ -158,7 +173,7 @@ impl VM {
         Ok(reg)
     }
 
-    fn trace(&mut self, opcode: Opcode) {
+    fn trace(&mut self, opcode: Opcode, dst: u8, src: u8, imm: VMWord) {
         // TODO: Improve error handling
         let pc_addr = self
             .registers
@@ -168,8 +183,50 @@ impl VM {
         self.trace_buffer.push(TraceEntry::new(
             pc_addr,
             opcode,
+            dst,
+            src,
+            imm,
             self.registers.register_map.clone(),
         ));
+    }
+
+    fn _write_logs<T: std::fmt::Debug>(data: T, file_name: &str) {
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(format!(".logs/{file_name}.log"))
+        {
+            writeln!(file, "{:#?}", data).unwrap();
+        }
+    }
+
+    fn _parse_private_inputs(&self) {
+        let mut registers = vec![];
+        let mut pc = vec![];
+        let mut opcode = vec![];
+        let mut reg_pairs = vec![];
+
+        for entry in &self.trace_buffer {
+            let mut reg_array = [0u16; 7];
+            let mut reg_pair_nested_array = [0usize; 3];
+
+            for (idx, reg) in entry.registers.iter() {
+                reg_array[*idx as usize] = reg.value;
+            }
+
+            [reg_pair_nested_array[0], reg_pair_nested_array[1], reg_pair_nested_array[2]] = [entry.dst as usize, entry.src as usize, entry.imm as usize];
+            reg_pairs.push(reg_pair_nested_array);
+
+            registers.push(reg_array);
+            pc.push(entry.pc);
+            opcode.push(entry.opcode as u16);
+        }
+
+        VM::_write_logs(registers, "registers");
+        VM::_write_logs(pc, "pc");
+        VM::_write_logs(opcode, "opcode");
+        VM::_write_logs(reg_pairs, "reg_pairs");
     }
 }
 
@@ -181,17 +238,8 @@ impl VM {
 impl VMOperations for VM {
     // TODO: Improve error handling for VMOperations
     fn halt(&mut self, _: Register, _: Register) {
-        // Ensure the .logs directory exists
-        let _ = fs::create_dir_all(".logs");
-
-        // Write the logs for tracing
-        if let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(".logs/vm_trace.log")
-        {
-            writeln!(file, "VM trace: {:#?}", self.trace_buffer).unwrap();
-        }
+        VM::_write_logs(&self.trace_buffer, "vm_trace");
+        self._parse_private_inputs();
 
         self.halted = true;
     }
@@ -283,6 +331,7 @@ So i decide how much bit/byte to give for my opcode when i decide how much uniqu
 #[derive(Debug, Copy, Clone)]
 #[allow(non_camel_case_types)]
 enum Opcode {
+    // These are so called mnemonics, human-readable representations of machine instructions, used to make VM ISA easier to understand
     HALT,
     COPY,      // register <- register
     LOAD,      // register <- memory[address in register]
