@@ -48,6 +48,9 @@ pub trait BusDevice: std::fmt::Debug {
 
         Ok(())
     }
+
+    fn get_specific_memory_location(&self, idx: usize) -> u16;
+    fn get_subset_of_memory(&self, start_addr: usize, end_addr: usize) -> Vec<u8>;
 }
 
 #[cfg(test)]
@@ -86,6 +89,14 @@ mod tests {
 
         fn as_bytes(&self) -> &Vec<u8> {
             &self.memory
+        }
+
+        fn get_specific_memory_location(&self, idx: usize) -> u16 {
+            300
+        }
+
+        fn get_subset_of_memory(&self, start_addr: usize, end_addr: usize) -> Vec<u8> {
+            vec![12, 23]
         }
     }
 

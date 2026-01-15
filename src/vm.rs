@@ -223,6 +223,11 @@ impl VM {
             opcode.push(entry.opcode as u16);
         }
 
+        // TODO: handle error without .unwrap()
+        let last_memory_addr = *pc.last().unwrap() as usize;
+        let memory_vec = self.memory.get_subset_of_memory(0x100, last_memory_addr);
+        
+        VM::_write_logs(memory_vec, "memory_subset");
         VM::_write_logs(registers, "registers");
         VM::_write_logs(pc, "pc");
         VM::_write_logs(opcode, "opcode");
