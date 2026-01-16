@@ -215,7 +215,11 @@ impl VM {
                 reg_array[*idx as usize] = reg.value;
             }
 
-            [reg_pair_nested_array[0], reg_pair_nested_array[1], reg_pair_nested_array[2]] = [entry.dst as usize, entry.src as usize, entry.imm as usize];
+            [
+                reg_pair_nested_array[0],
+                reg_pair_nested_array[1],
+                reg_pair_nested_array[2],
+            ] = [entry.dst as usize, entry.src as usize, entry.imm as usize];
             reg_pairs.push(reg_pair_nested_array);
 
             registers.push(reg_array);
@@ -223,10 +227,9 @@ impl VM {
             opcode.push(entry.opcode as u16);
         }
 
-        // TODO: handle error without .unwrap()
         let last_memory_addr = *pc.last().unwrap() as usize;
         let memory_vec = self.memory.get_subset_of_memory(0x100, last_memory_addr);
-        
+
         VM::_write_logs(memory_vec, "memory_subset");
         VM::_write_logs(registers, "registers");
         VM::_write_logs(pc, "pc");

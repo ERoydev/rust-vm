@@ -1,5 +1,5 @@
 use crate::{
-    bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM, zk::PublicInputs,
+    bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM, zk::ZkContext,
 };
 
 pub mod bus;
@@ -17,11 +17,12 @@ pub fn start_vm() {
 
     let program = build_simple_program();
     let mut vm = VM::new();
-    println!("Raw Program to execute: {:?}", program);
 
     // Public inputs, used for the zk logic
-    let mut public_inputs = PublicInputs::new();
-    public_inputs.set_program(program.clone());
+    let mut public_inputs = ZkContext::new();
+    if let Err(_) = public_inputs.set_public_program(program.clone()) {
+        eprintln!("Error settings public inputs for program");
+    }
 
     // This loads (write) the program into memory at the specified addresses (NOT EXECUTE)
     let mut memory = LinearMemory::new(5000);
@@ -55,7 +56,7 @@ pub fn start_vm() {
     }
 
     // Capture the OUTPUT state of the VM
-    if let Err(_) = public_inputs.set_output(&vm.registers, &vm.memory) {
+    if let Err(_) = public_inputs.set_public_output(&vm.registers, &vm.memory) {
         eprintln!("Cannot capture the output state from the VM.");
     }
 
