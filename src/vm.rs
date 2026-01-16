@@ -4,8 +4,12 @@ use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::Write;
 
+use ark_bn254::Fr;
+use wincode::serialize;
+
 use crate::constants::{START_ADDRESS, VMWord};
 use crate::error::Result;
+use crate::zk::{Sha256Hash, ZkContext};
 use crate::{
     bus::BusDevice,
     error::VMError,
@@ -202,39 +206,33 @@ impl VM {
     }
 
     fn _parse_private_inputs(&self) {
-        let mut registers = vec![];
-        let mut pc = vec![];
-        let mut opcode = vec![];
-        let mut reg_pairs = vec![];
+        // Combines pc, mem_at_pc_loc, register at that step, opcode at that step into Poseidon hash
+        let mut pub_program_state: Vec<Fr> = vec![];
+        let mut private_program_state: Vec<Fr> = vec![];
 
         for entry in &self.trace_buffer {
             let mut reg_array = [0u16; 7];
-            let mut reg_pair_nested_array = [0usize; 3];
 
             for (idx, reg) in entry.registers.iter() {
                 reg_array[*idx as usize] = reg.value;
             }
 
-            [
-                reg_pair_nested_array[0],
-                reg_pair_nested_array[1],
-                reg_pair_nested_array[2],
-            ] = [entry.dst as usize, entry.src as usize, entry.imm as usize];
-            reg_pairs.push(reg_pair_nested_array);
+            let memory_at_location = self.memory.get_specific_memory_location(entry.pc as usize);
+            let mem_bytes = serialize(&memory_at_location).unwrap();
+            let register_bytes: Vec<u8> = serialize(&reg_array).unwrap();
+            let pc_bytes = serialize(&entry.pc).unwrap();
+            let opcode_bytes = serialize(&(entry.opcode as u16)).unwrap();
 
-            registers.push(reg_array);
-            pc.push(entry.pc);
-            opcode.push(entry.opcode as u16);
+            let hashed_state =
+                Sha256Hash::hash_multiple(&[&mem_bytes, &register_bytes, &pc_bytes, &opcode_bytes]);
+            let poseidon_hash = ZkContext::_compute_poseidon_hash(hashed_state).unwrap();
+
+            pub_program_state.push(poseidon_hash);
+            private_program_state.push(hashed_state);
         }
 
-        let last_memory_addr = *pc.last().unwrap() as usize;
-        let memory_vec = self.memory.get_subset_of_memory(0x100, last_memory_addr);
-
-        VM::_write_logs(memory_vec, "memory_subset");
-        VM::_write_logs(registers, "registers");
-        VM::_write_logs(pc, "pc");
-        VM::_write_logs(opcode, "opcode");
-        VM::_write_logs(reg_pairs, "reg_pairs");
+        println!("Hashed state: {:?}", pub_program_state);
+        println!("Private state: {:?}", private_program_state);
     }
 }
 
