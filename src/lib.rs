@@ -13,6 +13,8 @@ pub mod zk;
 use constants::START_ADDRESS;
 
 pub fn start_vm() {
+    dotenv::dotenv().ok();
+    
     println!("VM is running...");
 
     let program = build_simple_program();

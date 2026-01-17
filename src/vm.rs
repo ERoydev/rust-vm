@@ -5,6 +5,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 
 use ark_bn254::Fr;
+use ark_ff::AdditiveGroup;
 use wincode::serialize;
 
 use crate::constants::{START_ADDRESS, VMWord};
@@ -238,8 +239,22 @@ impl VM {
             private_program_state.push(hashed_state);
         }
 
-        VM::_write_logs(pub_program_state, "public_program_state");
-        VM::_write_logs(private_program_state, "private_program_state");
+        if let Ok(state) = std::env::var("ZK_STATE_CAPACITY") {
+            // Add dummy states to fit zk program expected state capacity
+            let current_state_len = pub_program_state.len();
+            let state_capacity  = state.parse::<usize>().unwrap() - current_state_len;
+            VM::_write_logs(current_state_len, "state_len");
+
+            for _i in 0..state_capacity {
+                pub_program_state.push(Fr::ZERO);
+                private_program_state.push(Fr::ZERO);
+            }
+
+            VM::_write_logs(pub_program_state, "public_program_state");
+            VM::_write_logs(private_program_state, "private_program_state");
+        } else {
+            eprintln!("ZK_STATE_CAPACITY is not defined in .env file!");
+        }
     }
 }
 
