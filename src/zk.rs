@@ -16,22 +16,20 @@ use wincode::serialize;
 pub struct ZkContext {
     // Every Public input must be a hash performed using poseidon -> Sha256(data) -> Poseidon::hash(sha256_hashed_data)
     pub public_program_hash: Fr,
-    pub public_input_hash: Fr,
     pub public_output_hash: Fr, // concat(final_registers, final_memory)
 
     // Private witness -> Every private witness must be a hashed Field using Sha256 % BN254_MODULUS
-    pub raw_program_hash_sha: Fr,
-    pub private_output_hash: Fr,
+    pub private_program_sha254: Fr,
+    pub private_output_sha254: Fr,
 }
 
 impl ZkContext {
     pub fn new() -> Self {
         Self {
             public_program_hash: Fr::ZERO,
-            public_input_hash: Fr::ZERO,
             public_output_hash: Fr::ZERO,
-            raw_program_hash_sha: Fr::ZERO,
-            private_output_hash: Fr::ZERO,
+            private_program_sha254: Fr::ZERO,
+            private_output_sha254: Fr::ZERO,
         }
     }
 
@@ -39,7 +37,7 @@ impl ZkContext {
         let serialized_program = serialize(&program).unwrap();
         let sha_to_bn254_field = Sha256Hash::hash(&serialized_program);
         // Save the hash as a private representation of raw_program witness
-        self.raw_program_hash_sha = sha_to_bn254_field;
+        self.private_program_sha254 = sha_to_bn254_field;
 
         // Hash the public program using poseidon
         let poseidon_hashed = ZkContext::_compute_poseidon_hash(sha_to_bn254_field).unwrap();
@@ -77,7 +75,7 @@ impl ZkContext {
 
         let poseidon_hash = ZkContext::_compute_poseidon_hash(sha_to_bn254_field).unwrap();
         self.public_output_hash = poseidon_hash;
-        self.private_output_hash = sha_to_bn254_field;
+        self.private_output_sha254 = sha_to_bn254_field;
         Ok(())
     }
 

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 
 use ark_bn254::Fr;
@@ -194,12 +194,19 @@ impl VM {
         ));
     }
 
-    fn _write_logs<T: std::fmt::Debug>(data: T, file_name: &str) {
+    pub fn _write_logs<T: std::fmt::Debug>(data: T, file_name: &str) {
+        let log_dir = ".logs";
+        // Create the directory if it doesn't exist
+        if let Err(e) = fs::create_dir_all(log_dir) {
+            eprintln!("Failed to create log directory: {}", e);
+            return;
+        }
+
         if let Ok(mut file) = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
-            .open(format!(".logs/{file_name}.log"))
+            .open(format!("{}/{}.log", log_dir, file_name))
         {
             writeln!(file, "{:#?}", data).unwrap();
         }
@@ -231,8 +238,8 @@ impl VM {
             private_program_state.push(hashed_state);
         }
 
-        println!("Hashed state: {:?}", pub_program_state);
-        println!("Private state: {:?}", private_program_state);
+        VM::_write_logs(pub_program_state, "public_program_state");
+        VM::_write_logs(private_program_state, "private_program_state");
     }
 }
 
