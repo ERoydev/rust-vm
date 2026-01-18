@@ -14,7 +14,6 @@ use constants::START_ADDRESS;
 
 pub fn start_vm() {
     dotenv::dotenv().ok();
-    
     println!("VM is running...");
 
     let program = build_simple_program();
@@ -49,6 +48,7 @@ pub fn start_vm() {
 
     vm.set_memory(Box::new(memory));
     vm.enable_trace();
+    vm.enable_zk_output();
 
     while !vm.halted {
         if let Err(e) = vm.tick() {

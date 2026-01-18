@@ -64,6 +64,7 @@ pub trait VMOperations {
 }
 
 // It will simulate the computer for the 16bit VM
+#[derive(Debug)]
 pub struct VM {
     pub registers: RegisterBank,
     pub memory: Box<dyn BusDevice>, // main memory
@@ -71,6 +72,7 @@ pub struct VM {
 
     pub trace_enabled: bool,
     pub trace_buffer: Vec<TraceEntry>, // store trace entries
+    pub zk_output_enabled: bool,
 }
 
 impl VM {
@@ -81,6 +83,7 @@ impl VM {
             halted: false,
             trace_enabled: false,
             trace_buffer: Vec::new(),
+            zk_output_enabled: false,
         }
     }
 
@@ -92,6 +95,10 @@ impl VM {
     pub fn enable_trace(&mut self) {
         self.trace_enabled = true;
         println!("Trace enabled");
+    }
+
+    pub fn enable_zk_output(&mut self) {
+        self.zk_output_enabled = true;
     }
 
     /*
@@ -242,7 +249,7 @@ impl VM {
         if let Ok(state) = std::env::var("ZK_STATE_CAPACITY") {
             // Add dummy states to fit zk program expected state capacity
             let current_state_len = pub_program_state.len();
-            let state_capacity  = state.parse::<usize>().unwrap() - current_state_len;
+            let state_capacity = state.parse::<usize>().unwrap() - current_state_len;
             VM::_write_logs(current_state_len, "state_len");
 
             for _i in 0..state_capacity {
@@ -267,7 +274,9 @@ impl VMOperations for VM {
     // TODO: Improve error handling for VMOperations
     fn halt(&mut self, _: Register, _: Register) {
         VM::_write_logs(&self.trace_buffer, "vm_trace");
-        self._parse_private_inputs();
+        if self.zk_output_enabled {
+            self._parse_private_inputs();
+        }
 
         self.halted = true;
     }
@@ -389,6 +398,174 @@ impl TryFrom<u8> for Opcode {
             6 => Ok(Opcode::STORE_OUT),
 
             _ => Err(VMError::OpcodeDoesNotExist),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bus::BusDevice;
+    use crate::constants::VmAddr;
+    use crate::error::VMError;
+    use crate::register::RegisterId;
+    use crate::utils::build_simple_program;
+
+    #[derive(Debug)]
+    struct MockBus {
+        memory: Vec<u8>,
+    }
+
+    impl MockBus {
+        fn new() -> Self {
+            Self {
+                memory: vec![0; 1024],
+            }
+        }
+    }
+
+    impl BusDevice for MockBus {
+        fn read(&self, addr: VmAddr) -> Option<u8> {
+            self.memory.get(addr as usize).copied()
+        }
+        fn write(&mut self, addr: VmAddr, value: u8) -> Result<()> {
+            if let Some(slot) = self.memory.get_mut(addr as usize) {
+                *slot = value;
+                Ok(())
+            } else {
+                Err(VMError::OutOfBounds)
+            }
+        }
+        fn memory_range(&self) -> usize {
+            self.memory.len()
+        }
+
+        fn as_bytes(&self) -> &Vec<u8> {
+            &self.memory
+        }
+
+        fn get_specific_memory_location(&self, idx: usize) -> u16 {
+            let low_byte = self.memory[idx] as u16;
+            let high_byte = self.memory[idx + 1] as u16;
+            (high_byte << 8) | low_byte
+        }
+
+        fn get_subset_of_memory(&self, start_addr: usize, end_addr: usize) -> Vec<u8> {
+            self.memory[start_addr..end_addr].to_vec()
+        }
+    }
+
+    #[test]
+    fn test_vm_initialization() {
+        let vm = VM::new();
+        assert_eq!(vm.halted, false);
+        assert_eq!(vm.trace_enabled, false);
+        assert_eq!(vm.trace_buffer.len(), 0);
+    }
+
+    #[test]
+    fn test_set_memory() {
+        let mut vm = VM::new();
+        let dummy = Box::new(MockBus::new());
+        vm.set_memory(dummy);
+        assert_eq!(vm.memory.memory_range(), 1024);
+    }
+
+    #[test]
+    fn test_enable_trace() {
+        let mut vm = VM::new();
+        vm.enable_trace();
+        assert!(vm.trace_enabled);
+    }
+
+    #[test]
+    fn test_tick_halted() {
+        let mut vm = VM::new();
+        vm.halted = true;
+        let result = vm.tick();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_execute_instruction_dispatch_with_halt() {
+        let mut vm = VM::new();
+        let dummy = Box::new(MockBus::new());
+        vm.set_memory(dummy);
+        // Write a HALT instruction at address 0
+        let halt_opcode: u16 = 0 << 12;
+        vm.memory.write2(0, halt_opcode).unwrap();
+        // Set PC to 0
+        let rpc = vm.registers.get_register_mut(RegisterId::RPC.id()).unwrap();
+        rpc.value = 0;
+        let result = vm.tick();
+        assert!(vm.halted);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn text_execute_instruction_registers_and_pc() {
+        let program = build_simple_program();
+        let mut vm = VM::new();
+
+        let mut memory = LinearMemory::new(5000);
+        for (i, add_reg) in program.iter().enumerate() {
+            let address_to_write = u16::try_from(i)
+                // START_ADDRESS + (i as u16) * 2;
+                .expect("Value out of range for u16")
+                .checked_mul(2) // Implementation of a for loop step by 2
+                .expect("i * 2 failed")
+                .checked_add(START_ADDRESS)
+                .expect("Index + 0x100 out of range");
+
+            println!("\nAddress: {}, Value: {}", address_to_write, add_reg);
+
+            if let Err(e) = memory.write2(address_to_write, *add_reg) {
+                println!(
+                    "Writing on memory error on location: {}, err: {}",
+                    address_to_write, e
+                );
+            }
+        }
+
+        vm.set_memory(Box::new(memory));
+        let mut step = 0;
+        let expected_pcs: Vec<u16> = vec![258, 260, 262, 264, 266, 268, 270];
+        let expected_registers = vec![
+            // Step 0
+            [0, 0, 0, 0, 258, 22021, 5],
+            // Step 1
+            [5, 0, 0, 0, 260, 4192, 5],
+            // Step 2
+            [5, 0, 0, 0, 262, 22019, 3],
+            // Step 3
+            [5, 3, 0, 0, 264, 4448, 3],
+            // Step 4
+            [8, 3, 0, 0, 266, 16400, 3],
+            [8, 3, 0, 0, 268, 24576, 3],
+            [8, 3, 0, 0, 270, 0, 3],
+        ];
+        let expected_mem = vec![4192, 22019, 4448, 16400, 24576, 0, 0];
+
+        while !vm.halted {
+            if let Err(e) = vm.tick() {
+                eprintln!("Vm error: {}", e.message());
+                break;
+            } else {
+                // Test rpc step
+                let rpc = vm.registers.get_register_mut(RegisterId::RPC.id()).unwrap();
+                assert_eq!(rpc.value, expected_pcs[step]);
+
+                // test memory at location
+                let mem = vm.memory.get_specific_memory_location(rpc.value as usize);
+                assert_eq!(mem, expected_mem[step]);
+
+                // Test register value at each step
+                let reg_map = &vm.registers.register_map;
+                let actual: Vec<u16> = (0..7).map(|i| reg_map[&i].value).collect();
+                assert_eq!(actual, expected_registers[step]);
+
+                step += 1;
+            }
         }
     }
 }
