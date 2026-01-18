@@ -10,8 +10,7 @@ pub fn instruction_builder(opcode: u8, dest: u8, source: u8, immediate: u8) -> u
     //       |  |  |  |  |  |  | | | | | | | | | |
     //       -------------------------------------
     //       Most significant           Least significant
-    let instruction = (opcode << 12) | (dest << 8) | (source << 4) | immediate;
-    instruction
+    (opcode << 12) | (dest << 8) | (source << 4) | immediate
 }
 
 pub fn build_simple_program() -> Vec<u16> {
@@ -29,14 +28,13 @@ pub fn build_simple_program() -> Vec<u16> {
     // Store the result from r0 into memory
     let store_out = instruction_builder(0x06, 0x00, 0x00, 0x00);
 
-    let program = vec![
+    // Program
+    vec![
         load_imm_ix_rim,
         copy_ix_r0,
         load_imm_ix_rim2,
         copy_ix_r1,
         add_ix,
         store_out,
-    ];
-
-    program
+    ]
 }

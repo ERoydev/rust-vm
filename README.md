@@ -1,5 +1,10 @@
 # 16-bit Virtual Machine in Rust
 
+[![Tests][test-badge]][test-workflow-url]
+
+[test-badge]: https://github.com/LimeChain/codama-dart/actions/workflows/main.yml/badge.svg
+[test-workflow-url]: https://github.com/LimeChain/codama-dart/actions/workflows/main.yml
+
 This project is a simple, educational 16-bit virtual machine (VM) written in Rust. It is designed to help you understand how CPUs and low-level computer architecture work by simulating a basic computer system from scratch.
 
 ## Project Goals
@@ -59,6 +64,20 @@ Run the VM (example, see `main.rs` for entry point):
 ```sh
 cargo run
 ```
+
+## Future Improvements plans for the 16-bit VM
+
+Implement runtime
+
+Run eBPF-inspired programs: Support a small subset of eBPF instructions (arithmetic, logic, memory access, branching) adapted to 16-bit registers.
+
+Enhanced stack and memory: Add bounds-checked stack and simple memory model to handle eBPF-like program execution safely.
+
+Syscalls / helpers: Implement basic runtime functions such as logging or debug output for program interaction.
+
+Instruction decoding and execution: Support immediate values, relative jumps, and conditional branching for richer eBPF-style logic.
+
+Debugging and verification: Add execution logs, stack/register inspection, and basic safety checks (overflow, invalid jumps).
 
 ## Resources & Inspiration
 - [Writing an LC-3 VM in C](https://www.jmeiners.com/lc3-vm/)

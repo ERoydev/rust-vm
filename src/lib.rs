@@ -1,4 +1,6 @@
-use crate::{bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM};
+use crate::{
+    bus::BusDevice, memory::LinearMemory, utils::build_simple_program, vm::VM, zk::ZkContext,
+};
 
 pub mod bus;
 pub mod constants;
@@ -7,15 +9,21 @@ pub mod memory;
 pub mod register;
 pub mod utils;
 pub mod vm;
-
+pub mod zk;
 use constants::START_ADDRESS;
 
 pub fn start_vm() {
+    dotenv::dotenv().ok();
     println!("VM is running...");
 
     let program = build_simple_program();
     let mut vm = VM::new();
-    println!("Raw Program to execute: {:?}", program);
+
+    // Public inputs, used for the zk logic
+    let mut public_inputs = ZkContext::new();
+    if public_inputs.set_public_program(program.clone()).is_err() {
+        eprintln!("Error settings public inputs for program");
+    }
 
     // This loads (write) the program into memory at the specified addresses (NOT EXECUTE)
     let mut memory = LinearMemory::new(5000);
@@ -40,6 +48,7 @@ pub fn start_vm() {
 
     vm.set_memory(Box::new(memory));
     vm.enable_trace();
+    vm.enable_zk_output();
 
     while !vm.halted {
         if let Err(e) = vm.tick() {
@@ -47,6 +56,16 @@ pub fn start_vm() {
             break;
         }
     }
+
+    // Capture the OUTPUT state of the VM
+    if public_inputs
+        .set_public_output(&vm.registers, &*vm.memory)
+        .is_err()
+    {
+        eprintln!("Cannot capture the output state from the VM.");
+    }
+
+    VM::_write_logs(public_inputs, "public_inputs");
 
     if let Some(program_result) = vm.memory.read2(START_ADDRESS) {
         println!("The Value at address 0x100 is {}", program_result);

@@ -1,6 +1,7 @@
 use crate::constants::{START_ADDRESS, VMWord};
 use crate::error::{Result, VMError};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+use wincode_derive::SchemaWrite;
 
 /*
     Register is a slot for storing a single value on the CPU. Registers are like workbench of the CPU.
@@ -16,7 +17,7 @@ use std::collections::HashMap;
 
     R0 to R3 are general-purpose registers
 */
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, SchemaWrite)]
 #[repr(u8)]
 pub enum RegisterId {
     RR0, // return value register
@@ -37,7 +38,7 @@ impl RegisterId {
 pub const MAX_REGS: usize = 8;
 
 /// Registers should hold a copy of the value from memory, not a pointer, and not remove the value from memory.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, SchemaWrite)]
 pub struct Register {
     pub id: RegisterId,
     pub value: VMWord, // Bytes that it holds taken from memory
@@ -47,7 +48,7 @@ impl Register {
     pub fn new(register_type: RegisterId, value: VMWord) -> Self {
         Self {
             id: register_type,
-            value: value,
+            value,
         }
     }
 
@@ -59,13 +60,14 @@ impl Register {
     }
 }
 
+#[derive(Debug, SchemaWrite)]
 pub struct RegisterBank {
-    pub register_map: HashMap<u8, Register>,
+    pub register_map: BTreeMap<u8, Register>, // TODO: Storing registers like that is not the most efficient way, but i am going to leave it for now, to experiment with zk first.
 }
 
-impl RegisterBank {
-    pub fn new() -> Self {
-        let reg_hashmap: HashMap<u8, Register> = [
+impl Default for RegisterBank {
+    fn default() -> Self {
+        let reg_hashmap: BTreeMap<u8, Register> = [
             (
                 RegisterId::RR0.id(),
                 Register {
@@ -123,6 +125,13 @@ impl RegisterBank {
             register_map: reg_hashmap,
         }
     }
+}
+
+impl RegisterBank {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn get_register_read_only(&self, name: u8) -> Result<Register> {
         if let Some(reg) = self.register_map.get(&name).copied() {
             Ok(reg)
