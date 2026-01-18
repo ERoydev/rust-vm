@@ -1,5 +1,10 @@
 # 16-bit Virtual Machine in Rust
 
+[![Tests][test-badge]][test-workflow-url]
+
+[test-badge]: https://github.com/LimeChain/codama-dart/actions/workflows/main.yml/badge.svg
+[test-workflow-url]: https://github.com/LimeChain/codama-dart/actions/workflows/main.yml
+
 This project is a simple, educational 16-bit virtual machine (VM) written in Rust. It is designed to help you understand how CPUs and low-level computer architecture work by simulating a basic computer system from scratch.
 
 ## Project Goals
