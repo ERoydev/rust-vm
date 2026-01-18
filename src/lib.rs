@@ -21,7 +21,7 @@ pub fn start_vm() {
 
     // Public inputs, used for the zk logic
     let mut public_inputs = ZkContext::new();
-    if let Err(_) = public_inputs.set_public_program(program.clone()) {
+    if public_inputs.set_public_program(program.clone()).is_err() {
         eprintln!("Error settings public inputs for program");
     }
 
@@ -58,7 +58,10 @@ pub fn start_vm() {
     }
 
     // Capture the OUTPUT state of the VM
-    if let Err(_) = public_inputs.set_public_output(&vm.registers, &vm.memory) {
+    if public_inputs
+        .set_public_output(&vm.registers, &*vm.memory)
+        .is_err()
+    {
         eprintln!("Cannot capture the output state from the VM.");
     }
 

@@ -75,8 +75,8 @@ pub struct VM {
     pub zk_output_enabled: bool,
 }
 
-impl VM {
-    pub fn new() -> Self {
+impl Default for VM {
+    fn default() -> Self {
         Self {
             registers: RegisterBank::new(),
             memory: Box::new(LinearMemory::new(0)),
@@ -85,6 +85,12 @@ impl VM {
             trace_buffer: Vec::new(),
             zk_output_enabled: false,
         }
+    }
+}
+
+impl VM {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn set_memory(&mut self, memory: Box<dyn BusDevice>) {
@@ -173,15 +179,14 @@ impl VM {
 
     // If reg is RIM it will load the immediate value into that register immediately
     fn resolve_register_or_immediate(&mut self, reg_i: u8, imm_value: u16) -> Result<Register> {
-        let reg;
-        if reg_i == RegisterId::RIM.id() && imm_value != 0 {
+        let reg = if reg_i == RegisterId::RIM.id() && imm_value != 0 {
             let tmp = self.registers.get_register_mut(reg_i)?;
             tmp.value = imm_value;
-            reg = *tmp
+            *tmp
         } else {
             // When i deref a mut ref i return a copy of the Register, not a ref to the original
-            reg = *self.registers.get_register_mut(reg_i)?;
-        }
+            *self.registers.get_register_mut(reg_i)?
+        };
         Ok(reg)
     }
 
@@ -283,7 +288,11 @@ impl VMOperations for VM {
 
     fn write(&mut self, source_reg: Register, destination_reg: Register) {
         // dst_reg is address
-        if let Err(_) = self.memory.write2(destination_reg.value, source_reg.value) {
+        if self
+            .memory
+            .write2(destination_reg.value, source_reg.value)
+            .is_err()
+        {
             self.halted = true;
         }
     }
@@ -366,7 +375,7 @@ So i decide how much bit/byte to give for my opcode when i decide how much uniqu
 
 /// It depends on the OPCODE, sometimes reg.value is a bytes holding data already taken from memory, at other opcodes reg.value is an address pointing to a location in memory
 #[derive(Debug, Copy, Clone)]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 enum Opcode {
     // These are so called mnemonics, human-readable representations of machine instructions, used to make VM ISA easier to understand
     HALT,

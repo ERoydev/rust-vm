@@ -11,11 +11,12 @@ pub trait BusDevice: std::fmt::Debug {
     fn as_bytes(&self) -> &Vec<u8>;
 
     fn read2(&self, addr: VmAddr) -> Option<u16> {
-        if let Some(x0) = self.read(addr) {
-            if let Some(x1) = self.read(addr + 1) {
-                return Some((x0 as u16) | ((x1 as u16) << 8));
-            }
+        if let Some(x0) = self.read(addr)
+            && let Some(x1) = self.read(addr + 1)
+        {
+            return Some((x0 as u16) | ((x1 as u16) << 8));
         };
+
         None
     }
     fn write2(&mut self, addr: VmAddr, value: u16) -> Result<()> {
@@ -39,9 +40,7 @@ pub trait BusDevice: std::fmt::Debug {
         // So from and to are addresses, each address points to one byte in the memory -> [u8; 5000]
         // TODO: Maybe its better to pass whole Register object and access the value on that memory address by getter, instead of passing register address like that
         if let Some(bytes) = self.read2(from_addr) {
-            if let Err(err) = self.write2(to_addr, bytes) {
-                return Err(err);
-            }
+            self.write2(to_addr, bytes)?
         } else {
             return Err(VMError::CopyInstructionFail);
         }

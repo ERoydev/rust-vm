@@ -23,14 +23,20 @@ pub struct ZkContext {
     pub private_output_sha254: Fr,
 }
 
-impl ZkContext {
-    pub fn new() -> Self {
+impl Default for ZkContext {
+    fn default() -> Self {
         Self {
             public_program_hash: Fr::ZERO,
             public_output_hash: Fr::ZERO,
             private_program_sha254: Fr::ZERO,
             private_output_sha254: Fr::ZERO,
         }
+    }
+}
+
+impl ZkContext {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn set_public_program(&mut self, program: Vec<VMWord>) -> Result<()> {
@@ -53,7 +59,7 @@ impl ZkContext {
     pub fn set_public_output(
         &mut self,
         registers: &RegisterBank,
-        memory: &Box<dyn BusDevice>,
+        memory: &dyn BusDevice,
     ) -> Result<()> {
         // Serialize registers and memory
         let pc = registers
@@ -98,8 +104,7 @@ impl Sha256Hash {
 
         let hashed_value = hasher.finalize();
         let hashed_big_num = BigUint::from_bytes_be(&hashed_value);
-        let sha_to_field = Sha256Hash::__sha256_to_field(&hashed_big_num);
-        sha_to_field
+        Sha256Hash::__sha256_to_field(&hashed_big_num)
     }
 
     /// Hashes multiple byte slices using SHA256, concatenates them, reduces the result modulo the BN254 field,
@@ -112,8 +117,7 @@ impl Sha256Hash {
         }
         let hashed_value = hasher.finalize();
         let hashed_big_num = BigUint::from_bytes_be(&hashed_value);
-        let sha_to_field = Sha256Hash::__sha256_to_field(&hashed_big_num);
-        sha_to_field
+        Sha256Hash::__sha256_to_field(&hashed_big_num)
     }
 
     fn __sha256_to_field(sha256: &BigUint) -> Fr {
@@ -126,7 +130,6 @@ impl Sha256Hash {
         let reduced_sha = sha256 % modulus;
 
         let bytes = reduced_sha.to_bytes_be();
-        let field = Fr::from_be_bytes_mod_order(&bytes);
-        field
+        Fr::from_be_bytes_mod_order(&bytes)
     }
 }

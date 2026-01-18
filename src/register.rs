@@ -48,7 +48,7 @@ impl Register {
     pub fn new(register_type: RegisterId, value: VMWord) -> Self {
         Self {
             id: register_type,
-            value: value,
+            value,
         }
     }
 
@@ -65,8 +65,8 @@ pub struct RegisterBank {
     pub register_map: BTreeMap<u8, Register>, // TODO: Storing registers like that is not the most efficient way, but i am going to leave it for now, to experiment with zk first.
 }
 
-impl RegisterBank {
-    pub fn new() -> Self {
+impl Default for RegisterBank {
+    fn default() -> Self {
         let reg_hashmap: BTreeMap<u8, Register> = [
             (
                 RegisterId::RR0.id(),
@@ -125,6 +125,13 @@ impl RegisterBank {
             register_map: reg_hashmap,
         }
     }
+}
+
+impl RegisterBank {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn get_register_read_only(&self, name: u8) -> Result<Register> {
         if let Some(reg) = self.register_map.get(&name).copied() {
             Ok(reg)
